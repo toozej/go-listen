@@ -3,7 +3,7 @@
 cmd = "make local-build local-kill local-run"
 
 # Watch these filename extensions.
-include_ext = ["go", "tpl", "tmpl", "html"]
+include_ext = ["go", "tpl", "tmpl", "html", "css", "js"]
 
 # Ignore these filename extensions or directories.
 exclude_dir = ["assets", "tmp", "vendor", "testdata", "out"]

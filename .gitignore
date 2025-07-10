@@ -1,5 +1,5 @@
 # Cosign
-golang-starter.key
+go-listen.key
 cosign.key
 *.sig
 
@@ -22,9 +22,12 @@ out/
 
 # Dependency directories (remove the comment below to include it)
 vendor/
+node_modules/
 
 # Generated directories
 completions/
 manpages/
 docs/
 dist/
+.vscode/
+

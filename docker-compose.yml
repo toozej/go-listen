@@ -1,21 +1,23 @@
 ---
 services:
-  golang-starter:
-    container_name: golang-starter
-    image: toozej/golang-starter:latest
+  go-listen:
+    container_name: go-listen
+    image: toozej/go-listen:latest
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-    read_only: true
+    env_file:
+      - configs/production.env
     labels:
-      - "traefik.enable=false"
-      # labels below for publishing as web service
-      # - "traefik.docker.network=traefik"
-      # - "traefik.http.routers.golang-starter.rule=Host(`golang-starter.test`)"
-      # - "traefik.http.routers.golang-starter.middlewares=http-redirect-https@file,headers@file"
-      # - "traefik.http.routers.golang-starter-secure.entrypoints=https"
-      # - "traefik.http.routers.golang-starter-secure.rule=Host(`golang-starter.test`)"
-      # - "traefik.http.routers.golang-starter-secure.middlewares=headers@file"
-      # - "traefik.http.routers.golang-starter-secure.tls=true"
-    # networks:
-      # - traefik
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.go-listen.rule=Host(`go-listen.test`)"
+      - "traefik.http.routers.go-listen.middlewares=http-redirect-https@file,headers@file"
+      - "traefik.http.routers.go-listen-secure.entrypoints=https"
+      - "traefik.http.routers.go-listen-secure.rule=Host(`go-listen.test`)"
+      - "traefik.http.routers.go-listen-secure.middlewares=headers@file"
+      - "traefik.http.routers.go-listen-secure.tls=true"
+    networks:
+      - traefik
+networks:
+  traefik:
+    external: true

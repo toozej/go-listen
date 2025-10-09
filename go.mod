@@ -11,8 +11,8 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.10.1
 	github.com/zmb3/spotify/v2 v2.4.3
-	golang.org/x/oauth2 v0.31.0
-	golang.org/x/time v0.13.0
+	golang.org/x/oauth2 v0.32.0
+	golang.org/x/time v0.14.0
 )
 
 require (
@@ -22,5 +22,5 @@ require (
 	github.com/muesli/mango-pflag v0.2.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
-	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
 )

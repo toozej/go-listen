@@ -1,13 +1,56 @@
+// Package config provides secure configuration management for the go-listen application.
+//
+// This package handles loading configuration from environment variables and .env files
+// with built-in security measures to prevent path traversal attacks. It uses the
+// github.com/caarlos0/env library for environment variable parsing and
+// github.com/joho/godotenv for .env file loading.
+//
+// The configuration loading follows a priority order:
+//  1. Environment variables (highest priority)
+//  2. .env file in current working directory
+//  3. Default values (if any)
+//
+// Security features:
+//   - Path traversal protection for .env file loading
+//   - Secure file path resolution using filepath.Abs and filepath.Rel
+//   - Validation against directory traversal attempts
+//
+// Example usage:
+//
+//	import "github.com/toozej/go-listen/pkg/config"
+//
+//	func main() {
+//		conf := config.GetEnvVars(false)
+//		fmt.Printf("Server: %s\n", conf.Server.Address())
+//	}
 package config
 
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/caarlos0/env/v11"
 	"github.com/joho/godotenv"
 )
 
+// Config represents the application configuration structure.
+//
+// This struct defines all configurable parameters for the go-listen
+// application. Fields are tagged with struct tags that correspond to
+// environment variable names for automatic parsing.
+//
+// Configuration sections:
+//   - Server: HTTP server configuration (host, port)
+//   - Spotify: Spotify API credentials and settings
+//   - Security: Security-related settings (rate limiting)
+//   - Logging: Logging configuration (level, format, output)
+//
+// Example:
+//
+//	conf := config.GetEnvVars(false)
+//	fmt.Printf("Server will run on: %s\n", conf.Server.Address())
 type Config struct {
 	Server   ServerConfig   `envPrefix:"SERVER_"`
 	Spotify  SpotifyConfig  `envPrefix:"SPOTIFY_"`
@@ -53,12 +96,78 @@ func (s ServerConfig) Address() string {
 	return fmt.Sprintf("%s:%d", s.Host, s.Port)
 }
 
+// GetEnvVars loads and returns the application configuration from environment
+// variables and .env files with comprehensive security validation.
+//
+// This function performs the following operations:
+//  1. Securely determines the current working directory
+//  2. Constructs and validates the .env file path to prevent traversal attacks
+//  3. Loads .env file if it exists in the current directory
+//  4. Parses environment variables into the Config struct
+//  5. Validates the configuration for correctness
+//  6. Returns the populated configuration
+//
+// Security measures implemented:
+//   - Path traversal detection and prevention using filepath.Rel
+//   - Absolute path resolution for secure path operations
+//   - Validation against ".." sequences in relative paths
+//   - Safe file existence checking before loading
+//
+// The function will terminate the program with os.Exit(1) if any critical
+// errors occur during configuration loading, such as:
+//   - Current directory access failures
+//   - Path traversal attempts detected
+//   - .env file parsing errors
+//   - Environment variable parsing failures
+//   - Configuration validation failures
+//
+// Parameters:
+//   - debug: If true, prints detailed configuration information
+//
+// Returns:
+//   - Config: A populated and validated configuration struct
+//
+// Example:
+//
+//	// Load configuration with debug output
+//	conf := config.GetEnvVars(true)
+//
+//	// Use configuration
+//	server := &http.Server{Addr: conf.Server.Address()}
 func GetEnvVars(debug bool) Config {
+	// Get current working directory for secure file operations
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Printf("Error getting current working directory: %s\n", err)
+		os.Exit(1)
+	}
+
+	// Construct secure path for .env file within current directory
+	envPath := filepath.Join(cwd, ".env")
+
+	// Ensure the path is within our expected directory (prevent traversal)
+	cleanEnvPath, err := filepath.Abs(envPath)
+	if err != nil {
+		fmt.Printf("Error resolving .env file path: %s\n", err)
+		os.Exit(1)
+	}
+	cleanCwd, err := filepath.Abs(cwd)
+	if err != nil {
+		fmt.Printf("Error resolving current directory: %s\n", err)
+		os.Exit(1)
+	}
+	relPath, err := filepath.Rel(cleanCwd, cleanEnvPath)
+	if err != nil || strings.Contains(relPath, "..") {
+		fmt.Printf("Error: .env file path traversal detected\n")
+		os.Exit(1)
+	}
+
 	// Load .env file if it exists (will not override existing environment variables)
-	if _, err := os.Stat(".env"); err == nil {
-		if err := godotenv.Load(); err != nil {
-			fmt.Printf("Warning: Error loading .env file: %s\n", err)
-		} else {
+	if _, err := os.Stat(envPath); err == nil {
+		if err := godotenv.Load(envPath); err != nil {
+			fmt.Printf("Error loading .env file: %s\n", err)
+			os.Exit(1)
+		} else if debug {
 			fmt.Println("Loaded environment variables from .env file")
 		}
 	}

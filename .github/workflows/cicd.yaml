@@ -12,12 +12,17 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  # Give the workflow permission to write attestations.
+  id-token: write
+  attestations: write
+
 jobs:
   checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: '^1.25'
           check-latest: true
@@ -49,15 +54,15 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: '^1.25'
           check-latest: true
-      - uses: github/codeql-action/init@v3 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+      - uses: github/codeql-action/init@v4 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
         with:
           languages: go
-      - uses: github/codeql-action/autobuild@v3 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
-      - uses: github/codeql-action/analyze@v3 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+      - uses: github/codeql-action/autobuild@v4 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+      - uses: github/codeql-action/analyze@v4 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
 
   trivy-scan-source:
     name: trivy-scan-source
@@ -81,7 +86,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: snyk/actions/setup@master # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: '^1.25'
           check-latest: true
@@ -97,6 +102,8 @@ jobs:
     permissions:
       contents: write
       packages: write
+      id-token: write
+      attestations: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -105,10 +112,12 @@ jobs:
       - name: Fetch all tags
         run: git fetch --force --tags
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '^1.25'
           check-latest: true
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
       - uses: sigstore/cosign-installer@v3 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
       - uses: anchore/sbom-action/download-syft@v0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
       - name: Login to DockerHub
@@ -140,8 +149,17 @@ jobs:
           workdir: '/home/runner/work/go-listen/go-listen'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
           COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+      # After GoReleaser runs, attest all the files in ./dist/checksums.txt:
+      - uses: actions/attest-build-provenance@v3
+        with:
+          subject-checksums: ./dist/checksums.txt
+      # After GoReleaser runs, attest all the images in ./dist/digests.txt:
+      - uses: actions/attest-build-provenance@v3
+        with:
+          subject-checksums: ./dist/digests.txt
 
   verify_signed_binaries:
     runs-on: ubuntu-latest

@@ -287,7 +287,7 @@ func TestOverrideMessageFormatting(t *testing.T) {
 
 // Helper function to check if a string contains a substring (case-insensitive)
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+	return len(s) >= len(substr) && (s == substr || substr == "" ||
 		(len(s) > len(substr) && containsHelper(s, substr)))
 }
 

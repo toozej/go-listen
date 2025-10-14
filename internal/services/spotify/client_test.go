@@ -80,13 +80,13 @@ func TestClient_RefreshToken(t *testing.T) {
 	logger.SetLevel(logrus.ErrorLevel)
 
 	// Test with invalid credentials to test error handling
-	config := config.SpotifyConfig{
+	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
 		ClientSecret: "test-secret",
 	}
 
 	client := &Client{
-		config: config,
+		config: cfg,
 		logger: logger,
 		token:  nil, // No token, should trigger refresh
 		ctx:    context.Background(),
@@ -102,7 +102,7 @@ func TestClient_RefreshToken_NotNeeded(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
-	config := config.SpotifyConfig{
+	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
 		ClientSecret: "test-secret",
 	}
@@ -111,7 +111,7 @@ func TestClient_RefreshToken_NotNeeded(t *testing.T) {
 	futureTime := time.Now().Add(1 * time.Hour)
 
 	client := &Client{
-		config: config,
+		config: cfg,
 		logger: logger,
 		token: &oauth2.Token{
 			AccessToken: "test-token",
@@ -132,13 +132,13 @@ func TestClient_SearchArtist_NoToken(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
-	config := config.SpotifyConfig{
+	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
 		ClientSecret: "test-secret",
 	}
 
 	client := &Client{
-		config: config,
+		config: cfg,
 		logger: logger,
 		token:  nil,
 		ctx:    context.Background(),
@@ -154,13 +154,13 @@ func TestClient_GetArtistTopTracks_NoToken(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
-	config := config.SpotifyConfig{
+	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
 		ClientSecret: "test-secret",
 	}
 
 	client := &Client{
-		config: config,
+		config: cfg,
 		logger: logger,
 		token:  nil,
 		ctx:    context.Background(),
@@ -176,13 +176,13 @@ func TestClient_GetUserPlaylists_NoToken(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
-	config := config.SpotifyConfig{
+	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
 		ClientSecret: "test-secret",
 	}
 
 	client := &Client{
-		config: config,
+		config: cfg,
 		logger: logger,
 		token:  nil,
 		ctx:    context.Background(),
@@ -198,13 +198,13 @@ func TestClient_AddTracksToPlaylist_NoTracks(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
-	config := config.SpotifyConfig{
+	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
 		ClientSecret: "test-secret",
 	}
 
 	client := &Client{
-		config: config,
+		config: cfg,
 		logger: logger,
 		ctx:    context.Background(),
 	}
@@ -224,13 +224,13 @@ func TestClient_CheckTracksInPlaylist_NoTracks(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
-	config := config.SpotifyConfig{
+	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
 		ClientSecret: "test-secret",
 	}
 
 	client := &Client{
-		config: config,
+		config: cfg,
 		logger: logger,
 		ctx:    context.Background(),
 	}

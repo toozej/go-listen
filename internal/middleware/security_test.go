@@ -18,7 +18,7 @@ func TestSecurityHeaders(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/", http.NoBody)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
@@ -56,7 +56,7 @@ func TestRateLimit(t *testing.T) {
 
 	// First two requests should succeed
 	for i := 0; i < 2; i++ {
-		req := httptest.NewRequest("GET", "/", nil)
+		req := httptest.NewRequest("GET", "/", http.NoBody)
 		req.RemoteAddr = "192.168.1.1:12345"
 		w := httptest.NewRecorder()
 
@@ -68,7 +68,7 @@ func TestRateLimit(t *testing.T) {
 	}
 
 	// Third request should be rate limited
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/", http.NoBody)
 	req.RemoteAddr = "192.168.1.1:12345"
 	w := httptest.NewRecorder()
 
@@ -138,7 +138,7 @@ func TestInputValidation(t *testing.T) {
 				url += "?" + tt.query
 			}
 
-			req := httptest.NewRequest("GET", url, nil)
+			req := httptest.NewRequest("GET", url, http.NoBody)
 			w := httptest.NewRecorder()
 
 			handler.ServeHTTP(w, req)
@@ -161,7 +161,7 @@ func TestCSRFProtection(t *testing.T) {
 	}))
 
 	// GET request should not require CSRF token
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/", http.NoBody)
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
@@ -170,7 +170,7 @@ func TestCSRFProtection(t *testing.T) {
 	}
 
 	// POST request without CSRF token should be rejected
-	req = httptest.NewRequest("POST", "/", nil)
+	req = httptest.NewRequest("POST", "/", http.NoBody)
 	w = httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
@@ -184,7 +184,7 @@ func TestCSRFProtection(t *testing.T) {
 		t.Fatal("Failed to generate CSRF token")
 	}
 
-	req = httptest.NewRequest("POST", "/", nil)
+	req = httptest.NewRequest("POST", "/", http.NoBody)
 	req.Header.Set("X-CSRF-Token", token)
 	w = httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
@@ -194,7 +194,7 @@ func TestCSRFProtection(t *testing.T) {
 	}
 
 	// POST request with invalid CSRF token should be rejected
-	req = httptest.NewRequest("POST", "/", nil)
+	req = httptest.NewRequest("POST", "/", http.NoBody)
 	req.Header.Set("X-CSRF-Token", "invalid-token")
 	w = httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
@@ -274,7 +274,7 @@ func TestGetClientIP(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "/", nil)
+			req := httptest.NewRequest("GET", "/", http.NoBody)
 			req.RemoteAddr = tt.remoteAddr
 
 			for header, value := range tt.headers {

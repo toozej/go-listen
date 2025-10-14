@@ -119,7 +119,7 @@ func testConcurrentAccess(t *testing.T) {
 
 	// Test concurrent access
 	done := make(chan bool, 10)
-	errors := make(chan error, 10)
+	errs := make(chan error, 10)
 
 	for i := 0; i < 10; i++ {
 		go func(id int) {
@@ -131,7 +131,7 @@ func testConcurrentAccess(t *testing.T) {
 
 			_, err := service.CheckDuplicates("playlist"+string(rune(id)), tracks)
 			if err != nil {
-				errors <- err
+				errs <- err
 			}
 		}(i)
 	}
@@ -142,8 +142,8 @@ func testConcurrentAccess(t *testing.T) {
 	}
 
 	// Check for errors
-	close(errors)
-	for err := range errors {
+	close(errs)
+	for err := range errs {
 		t.Errorf("Concurrent access error: %v", err)
 	}
 }

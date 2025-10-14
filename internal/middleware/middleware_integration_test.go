@@ -99,7 +99,7 @@ func TestMiddlewareIntegration(t *testing.T) {
 			// Clear log buffer
 			logBuffer.Reset()
 
-			req := httptest.NewRequest(tt.method, tt.path, nil)
+			req := httptest.NewRequest(tt.method, tt.path, http.NoBody)
 			req.RemoteAddr = "192.168.1.1:12345"
 
 			// Add headers
@@ -186,7 +186,7 @@ func TestMiddlewareRateLimitingIntegration(t *testing.T) {
 
 	// First two requests should succeed
 	for i := 0; i < 2; i++ {
-		req := httptest.NewRequest("GET", "/test", nil)
+		req := httptest.NewRequest("GET", "/test", http.NoBody)
 		req.RemoteAddr = clientIP
 		w := httptest.NewRecorder()
 
@@ -198,7 +198,7 @@ func TestMiddlewareRateLimitingIntegration(t *testing.T) {
 	}
 
 	// Third request should be rate limited
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest("GET", "/test", http.NoBody)
 	req.RemoteAddr = clientIP
 	w := httptest.NewRecorder()
 
@@ -209,7 +209,7 @@ func TestMiddlewareRateLimitingIntegration(t *testing.T) {
 	}
 
 	// Request from different IP should succeed
-	req = httptest.NewRequest("GET", "/test", nil)
+	req = httptest.NewRequest("GET", "/test", http.NoBody)
 	req.RemoteAddr = "192.168.1.2:12345"
 	w = httptest.NewRecorder()
 
@@ -253,7 +253,7 @@ func TestMiddlewareConcurrentAccess(t *testing.T) {
 			defer wg.Done()
 
 			for j := 0; j < numRequestsPerGoroutine; j++ {
-				req := httptest.NewRequest("GET", "/test", nil)
+				req := httptest.NewRequest("GET", "/test", http.NoBody)
 				req.RemoteAddr = "192.168.1." + string(rune(goroutineID%255)) + ":12345"
 				w := httptest.NewRecorder()
 
@@ -353,7 +353,7 @@ func TestMiddlewareSecurityScenarios(t *testing.T) {
 
 	for _, scenario := range attackScenarios {
 		t.Run(scenario.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", scenario.path, nil)
+			req := httptest.NewRequest("GET", scenario.path, http.NoBody)
 			w := httptest.NewRecorder()
 
 			handler.ServeHTTP(w, req)
@@ -438,7 +438,7 @@ func TestMiddlewareCSRFIntegration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(tt.method, "/test", nil)
+			req := httptest.NewRequest(tt.method, "/test", http.NoBody)
 			if tt.csrfToken != "" {
 				req.Header.Set("X-CSRF-Token", tt.csrfToken)
 			}
@@ -479,7 +479,7 @@ func TestMiddlewareLoggingIntegration(t *testing.T) {
 		),
 	)
 
-	req := httptest.NewRequest("GET", "/test?param=value", nil)
+	req := httptest.NewRequest("GET", "/test?param=value", http.NoBody)
 	req.RemoteAddr = "192.168.1.1:12345"
 	req.Header.Set("User-Agent", "test-agent")
 
@@ -579,7 +579,7 @@ func TestMiddlewareErrorHandling(t *testing.T) {
 				securityMiddleware.SecurityHeaders(tt.handler),
 			)
 
-			req := httptest.NewRequest("GET", "/test", nil)
+			req := httptest.NewRequest("GET", "/test", http.NoBody)
 			w := httptest.NewRecorder()
 
 			if tt.shouldPanic {

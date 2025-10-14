@@ -49,7 +49,7 @@ func (m *mockPlaylistManager) FilterPlaylistsBySearch(playlists []types.Playlist
 	return filtered
 }
 
-func createTestServer() *Server {
+func createTestServer() (*Server, *mockPlaylistManager) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{
 			Host: "localhost",
@@ -83,21 +83,22 @@ func createTestServer() *Server {
 	securityMiddleware := middleware.NewSecurityMiddleware(logger.Logger, rateLimiter)
 	loggingMiddleware := middleware.NewLoggingMiddleware(logger)
 
+	mockPlaylist := &mockPlaylistManager{}
 	server := &Server{
 		router:             http.NewServeMux(),
 		config:             cfg,
 		logger:             logger,
-		playlist:           &mockPlaylistManager{},
+		playlist:           mockPlaylist,
 		rateLimiter:        rateLimiter,
 		securityMiddleware: securityMiddleware,
 		loggingMiddleware:  loggingMiddleware,
 	}
 
-	return server
+	return server, mockPlaylist
 }
 
 func TestHandleIndex(t *testing.T) {
-	server := createTestServer()
+	server, _ := createTestServer()
 
 	tests := []struct {
 		name           string
@@ -129,7 +130,7 @@ func TestHandleIndex(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(tt.method, tt.path, nil)
+			req := httptest.NewRequest(tt.method, tt.path, http.NoBody)
 			w := httptest.NewRecorder()
 
 			server.handleIndex(w, req)
@@ -149,7 +150,7 @@ func TestHandleIndex(t *testing.T) {
 }
 
 func TestHandleGetPlaylists(t *testing.T) {
-	server := createTestServer()
+	server, mockPlaylist := createTestServer()
 
 	// Set up mock playlists
 	mockPlaylists := []types.Playlist{
@@ -173,7 +174,6 @@ func TestHandleGetPlaylists(t *testing.T) {
 		},
 	}
 
-	mockPlaylist := server.playlist.(*mockPlaylistManager) //nolint
 	mockPlaylist.playlists = mockPlaylists
 
 	tests := []struct {
@@ -240,7 +240,7 @@ func TestHandleGetPlaylists(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(tt.method, "/api/playlists"+tt.query, nil)
+			req := httptest.NewRequest(tt.method, "/api/playlists"+tt.query, http.NoBody)
 			w := httptest.NewRecorder()
 
 			server.handleGetPlaylists(w, req)
@@ -285,7 +285,7 @@ func TestHandleGetPlaylists(t *testing.T) {
 }
 
 func TestHandleAddArtist(t *testing.T) {
-	server := createTestServer()
+	server, mockPlaylist := createTestServer()
 
 	tests := []struct {
 		name            string
@@ -415,7 +415,6 @@ func TestHandleAddArtist(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set up mock
-			mockPlaylist := server.playlist.(*mockPlaylistManager)
 			mockPlaylist.addResult = tt.mockResult
 			mockPlaylist.addError = tt.mockError
 
@@ -457,7 +456,7 @@ func TestHandleAddArtist(t *testing.T) {
 }
 
 func TestGenerateEmbedURL(t *testing.T) {
-	server := createTestServer()
+	server, _ := createTestServer()
 
 	tests := []struct {
 		name        string
@@ -492,7 +491,7 @@ func TestGenerateEmbedURL(t *testing.T) {
 }
 
 func TestValidateAddArtistRequest(t *testing.T) {
-	server := createTestServer()
+	server, _ := createTestServer()
 
 	tests := []struct {
 		name    string
@@ -561,7 +560,7 @@ func TestValidateAddArtistRequest(t *testing.T) {
 
 // TestAPIIntegration tests the integration between playlist and add-artist endpoints
 func TestAPIIntegration(t *testing.T) {
-	server := createTestServer()
+	server, mockPlaylist := createTestServer()
 
 	// Set up mock playlists
 	mockPlaylists := []types.Playlist{
@@ -573,7 +572,6 @@ func TestAPIIntegration(t *testing.T) {
 		},
 	}
 
-	mockPlaylist := server.playlist.(*mockPlaylistManager) //nolint
 	mockPlaylist.playlists = mockPlaylists
 	mockPlaylist.addResult = &types.AddResult{
 		Success: true,
@@ -589,7 +587,7 @@ func TestAPIIntegration(t *testing.T) {
 	}
 
 	// Test 1: Get playlists
-	req1 := httptest.NewRequest("GET", "/api/playlists", nil)
+	req1 := httptest.NewRequest("GET", "/api/playlists", http.NoBody)
 	w1 := httptest.NewRecorder()
 	server.handleGetPlaylists(w1, req1)
 
@@ -641,10 +639,9 @@ func TestAPIIntegration(t *testing.T) {
 
 // TestAPIErrorHandling tests error scenarios across API endpoints
 func TestAPIErrorHandling(t *testing.T) {
-	server := createTestServer()
+	server, mockPlaylist := createTestServer()
 
 	// Test playlist endpoint with service error
-	mockPlaylist := server.playlist.(*mockPlaylistManager)
 	mockPlaylist.addError = fmt.Errorf("service unavailable")
 
 	// Test add-artist with service error

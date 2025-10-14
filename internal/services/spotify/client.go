@@ -248,7 +248,8 @@ func (c *Client) GetArtistTopTracks(artistID string) ([]Track, error) {
 	tracks := make([]Track, maxTracks)
 	trackNames := make([]string, maxTracks)
 
-	for i, spotifyTrack := range topTracks[:maxTracks] {
+	for i := range topTracks[:maxTracks] {
+		spotifyTrack := &topTracks[i]
 		// Convert Spotify artists to our Artist type
 		artists := make([]Artist, len(spotifyTrack.Artists))
 		for j, spotifyArtist := range spotifyTrack.Artists {
@@ -319,7 +320,8 @@ func (c *Client) GetUserPlaylists(folderName string) ([]Playlist, error) {
 
 	// Log playlist names for debugging
 	playlistNames := make([]string, len(allPlaylists))
-	for i, pl := range allPlaylists {
+	for i := range allPlaylists {
+		pl := &allPlaylists[i]
 		playlistNames[i] = pl.Name
 	}
 	c.logger.WithFields(logrus.Fields{
@@ -327,7 +329,8 @@ func (c *Client) GetUserPlaylists(folderName string) ([]Playlist, error) {
 	}).Debug("Available playlists")
 
 	var filteredPlaylists []Playlist
-	for _, spotifyPlaylist := range allPlaylists {
+	for i := range allPlaylists {
+		spotifyPlaylist := &allPlaylists[i]
 		// Only include playlists owned by the user (not followed playlists)
 		isUserOwned := spotifyPlaylist.Owner.ID == currentUser.ID
 
@@ -377,7 +380,8 @@ func (c *Client) GetUserPlaylists(folderName string) ([]Playlist, error) {
 	if len(filteredPlaylists) == 0 && len(allPlaylists) > 0 && folderName != "" {
 		c.logger.WithField("folder_name", folderName).Warn("No playlists found matching folder name, returning all user playlists")
 
-		for _, spotifyPlaylist := range allPlaylists {
+		for i := range allPlaylists {
+			spotifyPlaylist := &allPlaylists[i]
 			isUserOwned := spotifyPlaylist.Owner.ID == currentUser.ID
 
 			if isUserOwned {
@@ -474,7 +478,8 @@ func (c *Client) CheckTracksInPlaylist(playlistID string, trackIDs []string) ([]
 	existingTracks := make(map[string]bool)
 	existingTrackNames := make([]string, 0)
 
-	for _, playlistItem := range items.Items {
+	for i := range items.Items {
+		playlistItem := &items.Items[i]
 		if playlistItem.Track.Track != nil && playlistItem.Track.Track.ID != "" {
 			trackID := string(playlistItem.Track.Track.ID)
 			existingTracks[trackID] = true

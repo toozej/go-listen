@@ -32,10 +32,4 @@ func TestNewManCmd(t *testing.T) {
 		t.Errorf("Unexpected command Hidden field: got %t, expected %t", NewManCmd().Hidden, expectedHidden)
 	}
 
-	//	c := cobra.Command()
-	//	expectedManPage := mcoral.NewManPage(1, c.Root())
-	//	if NewManCmd().RunE(c) != expectedManPage {
-	//		t.Errorf("Unexpected command Hidden field: got %t, expected %t", NewManCmd().Hidden, expectedHidden)
-	//	}
-
 }

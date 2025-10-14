@@ -19,7 +19,7 @@ func TestLoggingIntegration_HTTPMiddleware(t *testing.T) {
 	var logBuffer bytes.Buffer
 
 	// Create test server with logging enabled
-	server := createTestServer()
+	server, _ := createTestServer()
 	server.config.Logging = config.LoggingConfig{
 		Level:      "debug",
 		Format:     "json",
@@ -46,7 +46,7 @@ func TestLoggingIntegration_HTTPMiddleware(t *testing.T) {
 	server.setupRoutes()
 
 	// Make a test request
-	req := httptest.NewRequest("GET", "/api/playlists", nil)
+	req := httptest.NewRequest("GET", "/api/playlists", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	server.router.ServeHTTP(rr, req)
@@ -105,7 +105,7 @@ func TestLoggingIntegration_SecurityEvents(t *testing.T) {
 	var logBuffer bytes.Buffer
 
 	// Create test server with very low rate limit to trigger security events
-	server := createTestServer()
+	server, _ := createTestServer()
 	server.config.Security.RateLimit.RequestsPerSecond = 1
 	server.config.Security.RateLimit.Burst = 1
 
@@ -133,7 +133,7 @@ func TestLoggingIntegration_SecurityEvents(t *testing.T) {
 
 	// Make multiple rapid requests from the same IP to trigger rate limiting
 	for i := 0; i < 5; i++ {
-		req := httptest.NewRequest("GET", "/api/playlists", nil)
+		req := httptest.NewRequest("GET", "/api/playlists", http.NoBody)
 		req.RemoteAddr = "192.168.1.1:12345" // Same IP for all requests
 		rr := httptest.NewRecorder()
 		server.router.ServeHTTP(rr, req)
@@ -190,7 +190,7 @@ func TestLoggingIntegration_SuspiciousInput(t *testing.T) {
 	var logBuffer bytes.Buffer
 
 	// Create test server
-	server := createTestServer()
+	server, _ := createTestServer()
 
 	// Create a new logger with the buffer
 	logrusLogger := log.New()
@@ -211,7 +211,7 @@ func TestLoggingIntegration_SuspiciousInput(t *testing.T) {
 	server.setupRoutes()
 
 	// Make request with suspicious query parameter
-	req := httptest.NewRequest("GET", "/api/playlists?search=<script>alert('xss')</script>", nil)
+	req := httptest.NewRequest("GET", "/api/playlists?search=<script>alert('xss')</script>", http.NoBody)
 	rr := httptest.NewRecorder()
 	server.router.ServeHTTP(rr, req)
 
@@ -266,7 +266,7 @@ func TestLoggingIntegration_ComponentLogging(t *testing.T) {
 	var logBuffer bytes.Buffer
 
 	// Create test server
-	server := createTestServer()
+	server, _ := createTestServer()
 
 	// Create a new logger with the buffer
 	logrusLogger := log.New()
@@ -287,7 +287,7 @@ func TestLoggingIntegration_ComponentLogging(t *testing.T) {
 	server.setupRoutes()
 
 	// Make a request that will trigger server component logging
-	req := httptest.NewRequest("GET", "/api/playlists", nil)
+	req := httptest.NewRequest("GET", "/api/playlists", http.NoBody)
 	rr := httptest.NewRecorder()
 	server.router.ServeHTTP(rr, req)
 

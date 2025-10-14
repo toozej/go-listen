@@ -251,14 +251,16 @@ func (s *Server) handleGetPlaylists(w http.ResponseWriter, r *http.Request) {
 		}).Debug("Filtered playlists by search term")
 	}
 
-	// Generate embed URLs for each playlist
-	for i := range playlists {
-		playlists[i].EmbedURL = s.generateEmbedURL(playlists[i].URI)
+	// Generate embed URLs for each playlist (create a copy to avoid data races)
+	playlistsCopy := make([]types.Playlist, len(playlists))
+	for i, playlist := range playlists {
+		playlistsCopy[i] = playlist
+		playlistsCopy[i].EmbedURL = s.generateEmbedURL(playlist.URI)
 	}
 
 	response := types.APIResponse{
 		Success: true,
-		Data:    playlists,
+		Data:    playlistsCopy,
 	}
 
 	s.writeJSONResponse(w, response, http.StatusOK)

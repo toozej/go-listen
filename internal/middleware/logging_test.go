@@ -57,7 +57,7 @@ func TestLoggingMiddleware_LogRequests(t *testing.T) {
 	wrappedHandler := middleware.LogRequests(testHandler)
 
 	// Create a test request
-	req := httptest.NewRequest("GET", "/test?param=value", nil)
+	req := httptest.NewRequest("GET", "/test?param=value", http.NoBody)
 	req.Header.Set("User-Agent", "test-agent")
 	req.RemoteAddr = "192.168.1.1:12345"
 
@@ -145,7 +145,7 @@ func TestLoggingMiddleware_LogRequests_WithError(t *testing.T) {
 	wrappedHandler := middleware.LogRequests(testHandler)
 
 	// Create a test request
-	req := httptest.NewRequest("POST", "/api/test", nil)
+	req := httptest.NewRequest("POST", "/api/test", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	// Execute the request
@@ -192,7 +192,7 @@ func TestLoggingMiddleware_LogRequests_WithClientError(t *testing.T) {
 	wrappedHandler := middleware.LogRequests(testHandler)
 
 	// Create a test request
-	req := httptest.NewRequest("POST", "/api/test", nil)
+	req := httptest.NewRequest("POST", "/api/test", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	// Execute the request
@@ -327,7 +327,7 @@ func TestLoggingMiddleware_ContextPropagation(t *testing.T) {
 	wrappedHandler := middleware.LogRequests(testHandler)
 
 	// Create a test request
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest("GET", "/test", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	// Execute the request

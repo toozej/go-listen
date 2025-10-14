@@ -48,13 +48,13 @@ func TestServerIntegration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := createIntegrationTestServer()
+			server, _ := createIntegrationTestServer()
 			tt.testFunc(t, server)
 		})
 	}
 }
 
-func createIntegrationTestServer() *Server {
+func createIntegrationTestServer() (*Server, *enhancedMockPlaylistManager) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{
 			Host: "localhost",
@@ -147,7 +147,7 @@ func createIntegrationTestServer() *Server {
 	// Set up routes
 	server.setupRoutes()
 
-	return server
+	return server, mockPlaylist
 }
 
 // enhancedMockPlaylistManager provides more sophisticated mocking for integration tests
@@ -213,7 +213,7 @@ func (m *enhancedMockPlaylistManager) GetCallCount() int {
 
 func testCompleteWebInterfaceFlow(t *testing.T, server *Server) {
 	// Test 1: Load main page
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/", http.NoBody)
 	w := httptest.NewRecorder()
 	server.router.ServeHTTP(w, req)
 
@@ -226,7 +226,7 @@ func testCompleteWebInterfaceFlow(t *testing.T, server *Server) {
 	}
 
 	// Test 2: Get playlists for dropdown
-	req = httptest.NewRequest("GET", "/api/playlists", nil)
+	req = httptest.NewRequest("GET", "/api/playlists", http.NoBody)
 	w = httptest.NewRecorder()
 	server.router.ServeHTTP(w, req)
 
@@ -249,7 +249,7 @@ func testCompleteWebInterfaceFlow(t *testing.T, server *Server) {
 	}
 
 	// Test 3: Search playlists
-	req = httptest.NewRequest("GET", "/api/playlists?search=rock", nil)
+	req = httptest.NewRequest("GET", "/api/playlists?search=rock", http.NoBody)
 	w = httptest.NewRecorder()
 	server.router.ServeHTTP(w, req)
 
@@ -588,7 +588,7 @@ func testSecurityIntegration(t *testing.T, server *Server) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				req := httptest.NewRequest("GET", "/api/playlists", nil)
+				req := httptest.NewRequest("GET", "/api/playlists", http.NoBody)
 				req.RemoteAddr = "192.168.1.100:12345" // Same IP for all requests
 				w := httptest.NewRecorder()
 				server.router.ServeHTTP(w, req)
@@ -663,7 +663,7 @@ func testSecurityIntegration(t *testing.T, server *Server) {
 		}
 
 		for _, path := range maliciousInputs {
-			req := httptest.NewRequest("GET", path, nil)
+			req := httptest.NewRequest("GET", path, http.NoBody)
 			w := httptest.NewRecorder()
 			server.router.ServeHTTP(w, req)
 
@@ -675,7 +675,7 @@ func testSecurityIntegration(t *testing.T, server *Server) {
 
 	// Test security headers
 	t.Run("security_headers_integration", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/", nil)
+		req := httptest.NewRequest("GET", "/", http.NoBody)
 		w := httptest.NewRecorder()
 		server.router.ServeHTTP(w, req)
 
@@ -695,10 +695,10 @@ func testSecurityIntegration(t *testing.T, server *Server) {
 
 // TestEndToEndWorkflow tests a complete end-to-end workflow
 func TestEndToEndWorkflow(t *testing.T) {
-	server := createIntegrationTestServer()
+	server, mockPlaylist := createIntegrationTestServer()
 
 	// Step 1: User loads the main page
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/", http.NoBody)
 	w := httptest.NewRecorder()
 	server.router.ServeHTTP(w, req)
 
@@ -707,7 +707,7 @@ func TestEndToEndWorkflow(t *testing.T) {
 	}
 
 	// Step 2: User gets list of playlists
-	req = httptest.NewRequest("GET", "/api/playlists", nil)
+	req = httptest.NewRequest("GET", "/api/playlists", http.NoBody)
 	w = httptest.NewRecorder()
 	server.router.ServeHTTP(w, req)
 
@@ -726,7 +726,7 @@ func TestEndToEndWorkflow(t *testing.T) {
 	}
 
 	// Step 3: User searches for specific playlist
-	req = httptest.NewRequest("GET", "/api/playlists?search=rock", nil)
+	req = httptest.NewRequest("GET", "/api/playlists?search=rock", http.NoBody)
 	w = httptest.NewRecorder()
 	server.router.ServeHTTP(w, req)
 
@@ -787,8 +787,6 @@ func TestEndToEndWorkflow(t *testing.T) {
 	}
 
 	// Verify that the mock was called appropriately
-	//nolint:gocritic
-	mockPlaylist := server.playlist.(*enhancedMockPlaylistManager)
 	if mockPlaylist.GetCallCount() < 3 {
 		t.Errorf("Expected multiple calls to playlist manager, got %d", mockPlaylist.GetCallCount())
 	}
@@ -798,7 +796,7 @@ func TestEndToEndWorkflow(t *testing.T) {
 
 // TestConcurrentRequestHandling tests handling of concurrent requests
 func TestConcurrentRequestHandling(t *testing.T) {
-	server := createIntegrationTestServer()
+	server, _ := createIntegrationTestServer()
 
 	numGoroutines := 20
 	numRequestsPerGoroutine := 5
@@ -821,7 +819,7 @@ func TestConcurrentRequestHandling(t *testing.T) {
 				switch j % 3 {
 				case 0:
 					// GET playlists
-					req := httptest.NewRequest("GET", "/api/playlists", nil)
+					req := httptest.NewRequest("GET", "/api/playlists", http.NoBody)
 					req.RemoteAddr = fmt.Sprintf("192.168.1.%d:12345", goroutineID%255)
 					w := httptest.NewRecorder()
 					server.router.ServeHTTP(w, req)
@@ -829,7 +827,7 @@ func TestConcurrentRequestHandling(t *testing.T) {
 
 				case 1:
 					// GET main page
-					req := httptest.NewRequest("GET", "/", nil)
+					req := httptest.NewRequest("GET", "/", http.NoBody)
 					req.RemoteAddr = fmt.Sprintf("192.168.1.%d:12345", goroutineID%255)
 					w := httptest.NewRecorder()
 					server.router.ServeHTTP(w, req)

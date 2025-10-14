@@ -153,10 +153,16 @@ func TestConfigLoading(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Mock environment variables
+			var envKeys []string
 			for key, value := range tt.mockEnv {
 				os.Setenv(key, value)
-				defer os.Unsetenv(key)
+				envKeys = append(envKeys, key)
 			}
+			defer func() {
+				for _, key := range envKeys {
+					os.Unsetenv(key)
+				}
+			}()
 
 			// Test the configuration loading components separately to avoid os.Exit
 			var conf Config
@@ -308,10 +314,16 @@ func TestGetEnvVars(t *testing.T) {
 			}
 
 			// Set mock environment variables
+			var envKeys []string
 			for key, value := range tt.mockEnv {
 				os.Setenv(key, value)
-				defer os.Unsetenv(key)
+				envKeys = append(envKeys, key)
 			}
+			defer func() {
+				for _, key := range envKeys {
+					os.Unsetenv(key)
+				}
+			}()
 
 			// Test GetEnvVars function
 			conf := GetEnvVars(tt.debug)

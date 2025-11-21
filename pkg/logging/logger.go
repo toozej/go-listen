@@ -122,7 +122,7 @@ func (l *Logger) LogTrackAddition(ctx context.Context, artistName, playlistName 
 }
 
 // LogDuplicateDetection logs duplicate detection events
-func (l *Logger) LogDuplicateDetection(ctx context.Context, artistName, playlistName string, hasDuplicates bool, overrideUsed bool) {
+func (l *Logger) LogDuplicateDetection(ctx context.Context, artistName, playlistName string, hasDuplicates, overrideUsed bool) {
 	entry := l.WithContext(ctx).WithFields(logrus.Fields{
 		"component":      "duplicate_detection",
 		"operation":      "check_duplicates",

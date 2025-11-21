@@ -54,18 +54,18 @@ repos:
 
   # Golang formatting, linting, security and static analysis
   - repo: https://github.com/tekwizely/pre-commit-golang
-    rev: v1.0.0-rc.2
+    rev: v1.0.0-rc.4
     hooks:
       - id: go-sec-mod
       - id: go-staticcheck-mod
       - id: go-critic
-        args: ['-disable=sloppyTypeAssert']
       # disabled until https://github.com/orijtech/structslop/pull/63 is merged
       # - id: go-structslop-mod
       - id: go-fmt
       - id: go-imports
       - id: golangci-lint-mod
       - id: go-test-mod
+        args: [-race]
 
   # run shellcheck on Bash scripts
   - repo: https://github.com/koalaman/shellcheck-precommit
@@ -75,10 +75,11 @@ repos:
 
   # lint Dockerfile
   - repo: https://github.com/hadolint/hadolint
-    rev: v2.13.1
+    rev: v2.14.0
     hooks:
       - id: hadolint-docker
-        args: ["--ignore", "DL3007"]
+        args: ["--ignore", "DL3007", "--ignore", "DL3008", "--ignore", "DL3013", "--ignore",
+          "DL3062"]
 
   # lint Makefile
   - repo: https://github.com/mrtazz/checkmake/

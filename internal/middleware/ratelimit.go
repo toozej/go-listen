@@ -16,7 +16,7 @@ type RateLimiter struct {
 }
 
 // NewRateLimiter creates a new rate limiter
-func NewRateLimiter(requestsPerSecond int, burst int) *RateLimiter {
+func NewRateLimiter(requestsPerSecond, burst int) *RateLimiter {
 	rl := &RateLimiter{
 		visitors: make(map[string]*rate.Limiter),
 		rate:     rate.Limit(requestsPerSecond),

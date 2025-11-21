@@ -416,7 +416,7 @@ func TestFuzzyArtistSearcher_ConcurrentAccess(t *testing.T) {
 	// Test concurrent searches
 	numGoroutines := 10
 	done := make(chan bool, numGoroutines)
-	errors := make(chan error, numGoroutines)
+	errs := make(chan error, numGoroutines)
 
 	for i := 0; i < numGoroutines; i++ {
 		go func(id int) {
@@ -426,17 +426,17 @@ func TestFuzzyArtistSearcher_ConcurrentAccess(t *testing.T) {
 			artist, confidence, err := searcher.FindBestMatch(query)
 
 			if err != nil {
-				errors <- err
+				errs <- err
 				return
 			}
 
 			if artist == nil {
-				errors <- fmt.Errorf("got nil artist")
+				errs <- fmt.Errorf("got nil artist")
 				return
 			}
 
 			if confidence <= 0 {
-				errors <- fmt.Errorf("got invalid confidence")
+				errs <- fmt.Errorf("got invalid confidence")
 				return
 			}
 		}(i)
@@ -448,8 +448,8 @@ func TestFuzzyArtistSearcher_ConcurrentAccess(t *testing.T) {
 	}
 
 	// Check for errors
-	close(errors)
-	for err := range errors {
+	close(errs)
+	for err := range errs {
 		t.Errorf("Concurrent access error: %v", err)
 	}
 }

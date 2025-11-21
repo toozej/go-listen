@@ -26,14 +26,21 @@ LDFLAGS = -s -w \
 	-X $(VER).BuiltAt=$(NOW) \
 	-X $(VER).Builder=$(BUILDER)
 	
-OS = $(shell uname -s)
+# Define the repository URL
+REPO_URL := https://github.com/toozej/go-listen
+
+# Detect the OS and architecture
+OS := $(shell uname -s)
+ARCH := $(shell uname -m)
+LATEST_RELEASE_URL := $(REPO_URL)/releases/latest/download/go-listen_$(OS)_$(ARCH).tar.gz
+
 ifeq ($(OS), Linux)
 	OPENER=xdg-open
 else
 	OPENER=open
 endif
 
-.PHONY: all vet test build verify run up down install local local-vet local-test local-cover local-run local-kill local-iterate local-release-test local-release local-sign local-verify local-release-verify local-install get-cosign-pub-key docker-login pre-commit-install pre-commit-run pre-commit pre-reqs update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs docs-generate docs-serve clean help
+.PHONY: all vet test build verify run up down install local local-vet local-test local-cover local-run local-kill local-iterate local-release-test local-release local-sign local-verify local-release-verify local-install get-cosign-pub-key docker-login pre-commit-install pre-commit-run pre-commit pre-reqs update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark clean help
 
 all: vet pre-commit clean test build verify run ## Run default workflow via Docker
 local: local-update-deps local-vendor local-vet pre-commit clean local-test local-cover local-build local-sign local-verify local-kill local-run ## Run default workflow using locally installed Golang toolchain
@@ -41,13 +48,13 @@ local-release-verify: local-release local-sign local-verify ## Release and verif
 pre-reqs: pre-commit-install ## Install pre-commit hooks and necessary binaries
 
 vet: ## Run `go vet` in Docker
-	docker build --target vet -f $(CURDIR)/Dockerfile.distroless -t toozej/go-listen:latest . 
+	docker build --target vet -f $(CURDIR)/Dockerfile -t toozej/go-listen:latest . 
 
-test: ## Run `go test` in Docker
-	docker build --progress=plain --target test -f $(CURDIR)/Dockerfile.distroless -t toozej/go-listen:latest . 
+test: ## Run `go test` with race detection in Docker
+	docker build --progress=plain --target test -f $(CURDIR)/Dockerfile -t toozej/go-listen:latest . 
 
 build: ## Build Docker image, including running tests
-	docker build -f $(CURDIR)/Dockerfile.distroless -t toozej/go-listen:latest .
+	docker build -f $(CURDIR)/Dockerfile -t toozej/go-listen:latest .
 
 get-cosign-pub-key: ## Get go-listen Cosign public key from GitHub
 	test -f $(CURDIR)/go-listen.pub || curl --silent https://raw.githubusercontent.com/toozej/go-listen/main/go-listen.pub -O
@@ -90,7 +97,7 @@ local-vendor: ## Run `go mod tidy & vendor` using locally installed golang toolc
 	go mod vendor
 
 local-test: ## Run `go test` and JavaScript tests using locally installed toolchains
-	go test -coverprofile c.out -v $(CURDIR)/...
+	go test -race -coverprofile c.out -v $(CURDIR)/...
 	@echo -e "\nStatements missing coverage"
 	@grep -v -e " 1$$" c.out
 	@echo -e "\nRunning JavaScript tests..."
@@ -175,7 +182,7 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 	# staticcheck
 	go install honnef.co/go/tools/cmd/staticcheck@latest
 	# go-critic
-	go install github.com/go-critic/go-critic/cmd/gocritic@latest
+	go install github.com/go-critic/go-critic/cmd/go-critic@latest
 	# structslop
 	# go install github.com/orijtech/structslop/cmd/structslop@latest
 	# shellcheck
@@ -194,6 +201,8 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 	go install golang.org/x/vuln/cmd/govulncheck@latest
 	# air
 	go install github.com/air-verse/air@latest
+	# graphviz for dot
+	command -v dot || brew install graphviz || sudo apt install -y graphviz || sudo dnf install -y graphviz
 	# install and update pre-commits
 	# determine if on Debian 12 and if so use pip to install more modern pre-commit version
 	grep --silent "VERSION=\"12 (bookworm)\"" /etc/os-release && apt install -y --no-install-recommends python3-pip && python3 -m pip install --break-system-packages --upgrade pre-commit || echo "OS is not Debian 12 bookworm"
@@ -211,20 +220,70 @@ update-golang-version: ## Update to latest Golang version across the repo
 	@VERSION=`curl -s "https://go.dev/dl/?mode=json" | jq -r '.[0].version' | sed 's/go//' | cut -d '.' -f 1,2`; \
 	$(CURDIR)/scripts/update_golang_version.sh $$VERSION
 
-docs: docs-generate docs-serve ## Generate and serve documentation
+docs: ## Serve Go documentation
+	@echo "Starting Go documentation server on localhost"
+	@echo "Use Ctrl+C to stop the server"
+	go doc -http
 
-docs-generate:
-	docker build -f $(CURDIR)/Dockerfile.docs -t toozej/go-listen:docs . 
-	docker run --rm --name go-listen-docs -v $(CURDIR):/package -v $(CURDIR)/docs:/docs toozej/go-listen:docs
+diagrams: ## Generate architectural diagrams using go-diagrams
+	@echo "Generating architectural diagrams..."
+	go run cmd/diagrams/main.go
+	cd ./docs/diagrams/go-diagrams && for i in $(find . -name '*.dot'); do \
+		dot -Tpng $i > ${i%.dot}.png; \
+	done
+	@echo "Diagram PNGs generated in ./docs/diagrams/go-diagrams/"
 
-docs-serve: ## Serve documentation on http://localhost:9000
-	docker run -d --rm --name go-listen-docs-serve -p 9000:3080 -v $(CURDIR)/docs:/data thomsch98/markserv
-	$(OPENER) http://localhost:9000/docs.md
-	@echo -e "to stop docs container, run:\n"
-	@echo "docker kill go-listen-docs-serve"
+mutation-test: ## Run mutation testing using go-gremlins
+	@echo "Running mutation tests..."
+	gremlins unleash -E "vendor/"
+	@echo "Mutation testing completed"
 
-clean: ## Remove any locally compiled binaries
+test-changed: ## Run tests only for packages with changes since last commit
+	@echo "Running tests for changed packages..."
+	@CHANGED_PACKAGES=$(git diff --name-only HEAD~1 | grep '\.go$' | xargs -I {} dirname {} | sort -u | xargs -I {} go list ./{}... 2>/dev/null | grep -v 'no Go files'); \
+	if [ -n "$$CHANGED_PACKAGES" ]; then \
+		echo "Testing packages: $$CHANGED_PACKAGES"; \
+		go test -race -v $$CHANGED_PACKAGES; \
+	else \
+		echo "No changed Go packages found"; \
+	fi
+
+watch-test: ## Watch for file changes and run tests for changed packages
+	@echo "Watching for changes and running tests..."
+	@while true; do \
+		CHANGED_PACKAGES=$(git diff --name-only HEAD | grep '\.go$' | xargs -I {} dirname {} | sort -u | xargs -I {} go list ./{}... 2>/dev/null | grep -v 'no Go files'); \
+		if [ -n "$$CHANGED_PACKAGES" ]; then \
+			echo "Changed packages detected: $$CHANGED_PACKAGES"; \
+			go test -race -v $$CHANGED_PACKAGES; \
+		fi; \
+		sleep 2; \
+	done
+
+profile-cpu: ## Generate CPU performance profile
+	@echo "Generating CPU profile..."
+	mkdir -p $(CURDIR)/profiles
+	go test -bench=. -cpuprofile=$(CURDIR)/profiles/cpu.prof $(CURDIR)/internal/server/
+	@echo "CPU profile generated at $(CURDIR)/profiles/cpu.prof"
+	go tool pprof -http $(CURDIR)/profiles/cpu.prof
+
+profile-mem: ## Generate memory performance profile
+	@echo "Generating memory profile..."
+	mkdir -p $(CURDIR)/profiles
+	go test -bench=. -memprofile=$(CURDIR)/profiles/mem.prof $(CURDIR)/internal/server/
+	@echo "Memory profile generated at $(CURDIR)/profiles/mem.prof"
+	go tool pprof -http $(CURDIR)/profiles/mem.prof
+
+profile-all: profile-cpu profile-mem ## Generate both CPU and memory profiles
+
+benchmark: ## Run benchmarks
+	@echo "Running benchmarks..."
+	go test -bench=. -benchmem $(CURDIR)/internal/server/
+
+
+
+clean: ## Remove any locally compiled binaries and profiles
 	rm -f $(CURDIR)/out/go-listen
+	rm -rf $(CURDIR)/profiles/
 
 help: ## Display help text
 	@grep -E '^[a-zA-Z_-]+ ?:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

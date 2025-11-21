@@ -62,12 +62,10 @@ func TestNewLogger(t *testing.T) {
 			// Check formatter type
 			isJSON := false
 			isText := false
-			//nolint:gocritic
-			if _, ok := logger.Logger.Formatter.(*logrus.JSONFormatter); ok {
+			switch logger.Logger.Formatter.(type) {
+			case *logrus.JSONFormatter:
 				isJSON = true
-			}
-			//nolint:gocritic
-			if _, ok := logger.Logger.Formatter.(*logrus.TextFormatter); ok {
+			case *logrus.TextFormatter:
 				isText = true
 			}
 

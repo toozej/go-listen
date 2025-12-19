@@ -15,7 +15,21 @@ describe('GoListenApp Core Functionality', () => {
             </form>
             <div id="message-area"></div>
             <div id="spotify-player"></div>
+            <form id="scrape-form">
+                <input id="scrape-url" type="url" />
+                <input id="css-selector" type="text" />
+                <select id="scrape-playlist-select"></select>
+                <button id="scrape-button" type="submit">Scrape</button>
+            </form>
+            <div id="scrape-message-area"></div>
+            <div id="scrape-results"></div>
         `;
+        
+        // Mock fetch for initialization
+        fetch.mockResolvedValue({
+            ok: true,
+            json: async () => ({ csrf_token: 'test-token', success: true, data: { authenticated: true } })
+        });
         
         // Create app instance
         app = new GoListenApp();
@@ -24,6 +38,7 @@ describe('GoListenApp Core Functionality', () => {
     test('should initialize with correct default state', () => {
         expect(app.playlists).toEqual([]);
         expect(app.isLoading).toBe(false);
+        expect(app.isScraping).toBe(false);
         expect(app.isUpdatingDropdown).toBe(false);
         expect(app.csrfToken).toBeNull();
     });
@@ -451,5 +466,184 @@ describe('Async Functions', () => {
         expect(response.ok).toBe(true);
         expect(data.success).toBe(true);
         expect(data.data).toEqual(mockPlaylists);
+    });
+});
+
+describe('Scraping Functionality', () => {
+    let app;
+    
+    beforeEach(() => {
+        document.body.innerHTML = `
+            <form id="artist-form">
+                <input id="artist-name" type="text" />
+                <select id="playlist-select"></select>
+                <button id="add-button" type="submit">Add</button>
+                <button id="override-button" type="button">Override</button>
+            </form>
+            <div id="message-area"></div>
+            <div id="spotify-player"></div>
+            <form id="scrape-form">
+                <input id="scrape-url" type="url" />
+                <input id="css-selector" type="text" />
+                <select id="scrape-playlist-select"></select>
+                <button id="scrape-button" type="submit">Scrape</button>
+            </form>
+            <div id="scrape-message-area"></div>
+            <div id="scrape-results"></div>
+        `;
+        
+        app = new GoListenApp();
+    });
+
+    test('should validate scrape form correctly', () => {
+        // Test empty URL
+        app.scrapeUrlInput.value = '';
+        app.scrapePlaylistSelect.value = 'playlist1';
+        expect(app.validateScrapeForm()).toBe(false);
+
+        // Test invalid URL
+        app.scrapeUrlInput.value = 'not-a-url';
+        app.scrapePlaylistSelect.value = 'playlist1';
+        expect(app.validateScrapeForm()).toBe(false);
+
+        // Test empty playlist
+        app.scrapeUrlInput.value = 'https://example.com';
+        app.scrapePlaylistSelect.value = '';
+        expect(app.validateScrapeForm()).toBe(false);
+
+        // Test valid form
+        app.scrapeUrlInput.value = 'https://example.com';
+        app.scrapePlaylistSelect.value = 'playlist1';
+        expect(app.validateScrapeForm()).toBe(true);
+    });
+
+    test('should validate URLs correctly', () => {
+        expect(app.isValidUrl('https://example.com')).toBe(true);
+        expect(app.isValidUrl('http://example.com')).toBe(true);
+        expect(app.isValidUrl('ftp://example.com')).toBe(false);
+        expect(app.isValidUrl('not-a-url')).toBe(false);
+        expect(app.isValidUrl('')).toBe(false);
+    });
+
+    test('should manage scrape loading state correctly', () => {
+        app.playlists = [{ id: 'playlist1', name: 'Test' }];
+        
+        app.setScrapeLoading(true);
+        expect(app.isScraping).toBe(true);
+        expect(app.scrapeUrlInput.disabled).toBe(true);
+        expect(app.cssSelectorInput.disabled).toBe(true);
+        expect(app.scrapePlaylistSelect.disabled).toBe(true);
+
+        app.setScrapeLoading(false);
+        expect(app.isScraping).toBe(false);
+        expect(app.scrapeUrlInput.disabled).toBe(false);
+        expect(app.cssSelectorInput.disabled).toBe(false);
+        expect(app.scrapePlaylistSelect.disabled).toBe(false);
+    });
+
+    test('should show and hide scrape messages correctly', () => {
+        app.showScrapeMessage('Test message', 'success');
+        expect(app.scrapeMessageArea.textContent).toBe('Test message');
+        expect(app.scrapeMessageArea.className).toBe('message-area success');
+        expect(app.scrapeMessageArea.style.display).toBe('block');
+
+        app.hideScrapeMessage();
+        expect(app.scrapeMessageArea.textContent).toBe('');
+        expect(app.scrapeMessageArea.className).toBe('message-area');
+        expect(app.scrapeMessageArea.style.display).toBe('none');
+    });
+
+    test('should show and hide scrape results correctly', () => {
+        app.scrapeResults.classList.add('visible');
+        app.scrapeResults.innerHTML = '<div>Test</div>';
+
+        app.hideScrapeResults();
+        expect(app.scrapeResults.classList.contains('visible')).toBe(false);
+        expect(app.scrapeResults.innerHTML).toBe('');
+    });
+
+    test('should create stat element correctly', () => {
+        const stat = app.createStatElement('Success', 5, 'success');
+        expect(stat.className).toBe('scrape-stat');
+        
+        const label = stat.querySelector('.scrape-stat-label');
+        expect(label.textContent).toBe('Success');
+        
+        const value = stat.querySelector('.scrape-stat-value');
+        expect(value.textContent).toBe('5');
+        expect(value.className).toBe('scrape-stat-value success');
+    });
+
+    test('should create artist result element for success', () => {
+        const match = {
+            query: 'Test Artist',
+            matched: true,
+            artist: { name: 'Test Artist' },
+            confidence: 0.95,
+            tracks_added: 5,
+            was_duplicate: false,
+            error: null
+        };
+
+        const result = app.createArtistResultElement(match);
+        expect(result.className).toContain('success');
+        
+        const name = result.querySelector('.artist-result-name');
+        expect(name.textContent).toBe('Test Artist');
+        
+        const status = result.querySelector('.artist-result-status');
+        expect(status.textContent).toBe('Successfully added 5 tracks');
+    });
+
+    test('should create artist result element for duplicate', () => {
+        const match = {
+            query: 'Test Artist',
+            matched: true,
+            artist: { name: 'Test Artist' },
+            confidence: 0.95,
+            tracks_added: 0,
+            was_duplicate: true,
+            error: null
+        };
+
+        const result = app.createArtistResultElement(match);
+        expect(result.className).toContain('duplicate');
+        
+        const status = result.querySelector('.artist-result-status');
+        expect(status.textContent).toBe('Already in playlist (skipped)');
+    });
+
+    test('should create artist result element for error', () => {
+        const match = {
+            query: 'Test Artist',
+            matched: false,
+            artist: null,
+            confidence: 0,
+            tracks_added: 0,
+            was_duplicate: false,
+            error: 'Artist not found'
+        };
+
+        const result = app.createArtistResultElement(match);
+        expect(result.className).toContain('error');
+        
+        const status = result.querySelector('.artist-result-status');
+        expect(status.textContent).toBe('Artist not found');
+    });
+
+    test('should populate both playlist selects', () => {
+        const playlists = [
+            { id: 'playlist1', name: 'Test Playlist 1', track_count: 5, embed_url: 'https://example.com/1' },
+            { id: 'playlist2', name: 'Test Playlist 2', track_count: 10, embed_url: 'https://example.com/2' }
+        ];
+
+        app.populatePlaylistSelect(playlists);
+        
+        expect(app.playlistSelect.disabled).toBe(false);
+        expect(app.scrapePlaylistSelect.disabled).toBe(false);
+        
+        // Both should have the same number of options
+        expect(app.playlistSelect.options.length).toBe(app.scrapePlaylistSelect.options.length);
+        expect(app.playlistSelect.options.length).toBe(3); // default + 2 playlists
     });
 });

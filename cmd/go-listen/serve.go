@@ -10,6 +10,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/toozej/go-listen/internal/server"
+	"github.com/toozej/go-listen/internal/services/scraper"
+	"github.com/toozej/go-listen/internal/services/search"
 )
 
 var serveCmd = &cobra.Command{
@@ -20,8 +22,40 @@ var serveCmd = &cobra.Command{
 }
 
 func runServeCommand(cmd *cobra.Command, args []string) {
+	// Initialize logger
+	logger := log.New()
+	if debug {
+		logger.SetLevel(log.DebugLevel)
+	}
+
 	// Create server instance
 	srv := server.NewServer(&conf)
+
+	// Use the server's authenticated Spotify service and playlist manager
+	// instead of creating new instances that won't be authenticated
+	spotifyService := srv.GetSpotifyService()
+	playlistManager := srv.GetPlaylistManager()
+	fuzzySearcher := search.NewFuzzyArtistSearcher(spotifyService, logger)
+
+	// Initialize scraper components
+	parser := scraper.NewGoqueryParser(logger)
+	extractor := scraper.NewPatternArtistExtractor(logger)
+
+	// Create scraper service using the server's authenticated services
+	scraperConfig := scraper.DefaultScraperConfig()
+	scraperService := scraper.NewWebScraper(
+		scraperConfig,
+		parser,
+		extractor,
+		fuzzySearcher,
+		playlistManager,
+		logger,
+	)
+
+	// Set the scraper service on the server
+	srv.SetScraperService(scraperService)
+
+	logger.Info("Server initialized with scraper service using authenticated Spotify service")
 
 	// Start server in a goroutine
 	go func() {

@@ -205,6 +205,22 @@ func (m *enhancedMockPlaylistManager) FilterPlaylistsBySearch(playlists []types.
 	return filtered
 }
 
+func (m *enhancedMockPlaylistManager) AddTracksToPlaylist(playlistID string, trackIDs []string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.callCount++
+	return nil
+}
+
+func (m *enhancedMockPlaylistManager) CheckForDuplicates(playlistID string, trackIDs []string) (*types.DuplicateResult, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.callCount++
+	return &types.DuplicateResult{
+		HasDuplicates: false,
+	}, nil
+}
+
 func (m *enhancedMockPlaylistManager) GetCallCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()

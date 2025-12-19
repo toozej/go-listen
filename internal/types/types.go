@@ -23,6 +23,8 @@ type PlaylistManager interface {
 	GetIncomingPlaylists() ([]Playlist, error)
 	GetTop5Tracks(artistID string) ([]Track, error)
 	FilterPlaylistsBySearch(playlists []Playlist, searchTerm string) []Playlist
+	AddTracksToPlaylist(playlistID string, trackIDs []string) error
+	CheckForDuplicates(playlistID string, trackIDs []string) (*DuplicateResult, error)
 }
 
 // DuplicateDetector defines the interface for duplicate detection
@@ -118,6 +120,21 @@ type APIResponse struct {
 // PlaylistSearchRequest represents a request to search playlists
 type PlaylistSearchRequest struct {
 	SearchTerm string `json:"search_term" validate:"max=100"`
+}
+
+// ScrapeArtistsRequest represents a request to scrape artists from a URL
+type ScrapeArtistsRequest struct {
+	URL         string `json:"url" validate:"required,url"`
+	CSSSelector string `json:"css_selector" validate:"max=500"`
+	PlaylistID  string `json:"playlist_id" validate:"required"`
+	Force       bool   `json:"force"`
+}
+
+// ScrapeArtistsResponse represents the response from scraping artists
+type ScrapeArtistsResponse struct {
+	Success bool   `json:"success"`
+	Data    any    `json:"data,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 // WebUIResponse represents a response for the web UI

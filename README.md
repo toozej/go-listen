@@ -13,12 +13,14 @@ A web application that allows users to search for artists and automatically add 
 ## Features
 
 - **Artist Search**: Fuzzy matching to find artists even with typos or variations
+- **Web Scraping Artist Discovery**: Automatically extract and add artists from web pages (Reddit posts, music blogs, forums)
 - **Automatic Track Addition**: Adds top 5 tracks from found artists to selected playlists
 - **Duplicate Detection**: Prevents adding the same artist's tracks multiple times with override option
 - **Playlist Management**: Works with playlists in your "Incoming" folder on Spotify
 - **Responsive Web Interface**: Works seamlessly on desktop, tablet, and mobile devices
 - **Embedded Spotify Player**: Listen to your playlists directly in the web interface
 - **REST API**: Programmatic access for automation and integration
+- **CLI Commands**: Command-line interface for scripting and automation
 - **Security Features**: CSRF protection, rate limiting, input validation, and security headers
 - **Comprehensive Logging**: Structured logging with multiple levels and HTTP request tracking
 
@@ -89,6 +91,38 @@ go build -o go-listen .
 4. **Handle Duplicates**: If tracks already exist, you'll get an option to add anyway
 5. **Listen**: Use the embedded Spotify player to listen to your updated playlist
 
+### Web Scraping
+
+Automatically discover and add artists from web pages:
+
+1. **Enter a URL**: Paste a link to a Reddit post, music blog, or forum discussion
+2. **Optional CSS Selector**: Target specific page sections (e.g., `div.post-content`)
+3. **Scrape & Add**: The system extracts artist names, fuzzy matches them to Spotify, and adds their top 5 tracks
+4. **Review Results**: See which artists were successfully added, which failed, and which were duplicates
+
+**Example URLs:**
+- Reddit music recommendation threads
+- Music blog "best of" lists
+- Forum discussions about artists
+- Concert lineup pages
+
+### CLI Commands
+
+```bash
+# Scrape artists from a URL and add to playlist
+go-listen scrape https://example.com/artists --playlist PLAYLIST_ID
+
+# Use a CSS selector to target specific content
+go-listen scrape https://reddit.com/r/music/... \
+  --selector "div[data-test-id='post-content']" \
+  --playlist PLAYLIST_ID
+
+# Force add even if duplicates exist
+go-listen scrape https://example.com/artists \
+  --playlist PLAYLIST_ID \
+  --force
+```
+
 ### REST API
 
 See REST [API Documentation](docs/api.md)
@@ -104,6 +138,11 @@ See REST [API Documentation](docs/api.md)
 | `SPOTIFY_REDIRECT_URL` | `http://127.0.0.1:8080/callback` | Spotify OAuth redirect URL |
 | `SERVER_HOST` | `localhost` | Server bind address |
 | `SERVER_PORT` | `8080` | Server port |
+| `SCRAPER_TIMEOUT` | `30s` | HTTP timeout for web scraping |
+| `SCRAPER_MAX_RETRIES` | `3` | Max retry attempts for failed requests |
+| `SCRAPER_RETRY_BACKOFF` | `2s` | Initial backoff delay for retries |
+| `SCRAPER_USER_AGENT` | `go-listen/1.0` | User agent for web requests |
+| `SCRAPER_MAX_CONTENT_SIZE` | `10485760` | Max content size (10MB) |
 | `SECURITY_RATE_LIMIT_REQUESTS_PER_SECOND` | `10` | Rate limit per IP |
 | `SECURITY_RATE_LIMIT_BURST` | `20` | Rate limit burst capacity |
 | `LOGGING_LEVEL` | `info` | Log level (debug, info, warn, error) |

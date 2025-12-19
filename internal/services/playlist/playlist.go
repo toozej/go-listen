@@ -209,8 +209,111 @@ func (p *PlaylistService) GetIncomingPlaylists() ([]types.Playlist, error) {
 
 // GetTop5Tracks gets the top 5 tracks for an artist
 func (p *PlaylistService) GetTop5Tracks(artistID string) ([]types.Track, error) {
-	// TODO: Implement in task 2.3
-	return nil, nil
+	p.logger.WithFields(log.Fields{
+		"component": "playlist_service",
+		"operation": "get_top5_tracks",
+		"artist_id": artistID,
+	}).Debug("Getting top 5 tracks for artist")
+
+	tracks, err := p.spotify.GetArtistTopTracks(artistID)
+	if err != nil {
+		p.logger.WithError(err).WithFields(log.Fields{
+			"component": "playlist_service",
+			"operation": "get_top5_tracks",
+			"artist_id": artistID,
+		}).Error("Failed to get artist top tracks")
+		return nil, err
+	}
+
+	p.logger.WithFields(log.Fields{
+		"component":   "playlist_service",
+		"operation":   "get_top5_tracks",
+		"artist_id":   artistID,
+		"track_count": len(tracks),
+	}).Info("Successfully retrieved artist top tracks")
+
+	return tracks, nil
+}
+
+// AddTracksToPlaylist adds tracks to a playlist
+func (p *PlaylistService) AddTracksToPlaylist(playlistID string, trackIDs []string) error {
+	p.logger.WithFields(log.Fields{
+		"component":   "playlist_service",
+		"operation":   "add_tracks_to_playlist",
+		"playlist_id": playlistID,
+		"track_count": len(trackIDs),
+	}).Debug("Adding tracks to playlist")
+
+	err := p.spotify.AddTracksToPlaylist(playlistID, trackIDs)
+	if err != nil {
+		p.logger.WithError(err).WithFields(log.Fields{
+			"component":   "playlist_service",
+			"operation":   "add_tracks_to_playlist",
+			"playlist_id": playlistID,
+			"track_count": len(trackIDs),
+		}).Error("Failed to add tracks to playlist")
+		return err
+	}
+
+	p.logger.WithFields(log.Fields{
+		"component":   "playlist_service",
+		"operation":   "add_tracks_to_playlist",
+		"playlist_id": playlistID,
+		"track_count": len(trackIDs),
+	}).Info("Successfully added tracks to playlist")
+
+	return nil
+}
+
+// CheckForDuplicates checks if tracks already exist in a playlist
+func (p *PlaylistService) CheckForDuplicates(playlistID string, trackIDs []string) (*types.DuplicateResult, error) {
+	p.logger.WithFields(log.Fields{
+		"component":   "playlist_service",
+		"operation":   "check_duplicates",
+		"playlist_id": playlistID,
+		"track_count": len(trackIDs),
+	}).Debug("Checking for duplicate tracks in playlist")
+
+	duplicateFlags, err := p.spotify.CheckTracksInPlaylist(playlistID, trackIDs)
+	if err != nil {
+		p.logger.WithError(err).WithFields(log.Fields{
+			"component":   "playlist_service",
+			"operation":   "check_duplicates",
+			"playlist_id": playlistID,
+			"track_count": len(trackIDs),
+		}).Error("Failed to check for duplicate tracks")
+		return nil, err
+	}
+
+	// Count duplicates
+	duplicateCount := 0
+	for _, isDuplicate := range duplicateFlags {
+		if isDuplicate {
+			duplicateCount++
+		}
+	}
+
+	hasDuplicates := duplicateCount > 0
+	message := ""
+	if hasDuplicates {
+		message = "Some tracks already exist in the playlist"
+	}
+
+	result := &types.DuplicateResult{
+		HasDuplicates: hasDuplicates,
+		Message:       message,
+	}
+
+	p.logger.WithFields(log.Fields{
+		"component":       "playlist_service",
+		"operation":       "check_duplicates",
+		"playlist_id":     playlistID,
+		"track_count":     len(trackIDs),
+		"duplicate_count": duplicateCount,
+		"has_duplicates":  hasDuplicates,
+	}).Info("Completed duplicate check")
+
+	return result, nil
 }
 
 // FilterPlaylistsBySearch filters playlists by search term

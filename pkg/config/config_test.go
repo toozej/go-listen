@@ -347,8 +347,11 @@ func TestValidateConfig(t *testing.T) {
 			name: "Valid configuration",
 			config: Config{
 				Server: ServerConfig{
-					Host: "localhost",
-					Port: 8080,
+					Host:         "localhost",
+					Port:         8080,
+					ReadTimeout:  30,
+					WriteTimeout: 60,
+					IdleTimeout:  120,
 				},
 				Spotify: SpotifyConfig{
 					ClientID:     "test_id",
@@ -367,13 +370,25 @@ func TestValidateConfig(t *testing.T) {
 					Output:     "stdout",
 					EnableHTTP: true,
 				},
+				Scraper: ScraperConfig{
+					TimeoutSeconds: 30,
+					MaxRetries:     3,
+					RetryBackoff:   2,
+					UserAgent:      "go-listen/1.0 (Web Scraper)",
+					MaxContentSize: 10485760,
+				},
 			},
 			expectError: false,
 		},
 		{
 			name: "Invalid server port - too low",
 			config: Config{
-				Server: ServerConfig{Port: 0},
+				Server: ServerConfig{
+					Port:         0,
+					ReadTimeout:  30,
+					WriteTimeout: 60,
+					IdleTimeout:  120,
+				},
 				Security: SecurityConfig{
 					RateLimit: RateLimitConfig{
 						RequestsPerSecond: 10,
@@ -383,6 +398,12 @@ func TestValidateConfig(t *testing.T) {
 				Logging: LoggingConfig{
 					Level:  "info",
 					Format: "json",
+				},
+				Scraper: ScraperConfig{
+					TimeoutSeconds: 30,
+					MaxRetries:     3,
+					RetryBackoff:   2,
+					MaxContentSize: 10485760,
 				},
 			},
 			expectError: true,
@@ -391,7 +412,12 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "Invalid server port - too high",
 			config: Config{
-				Server: ServerConfig{Port: 70000},
+				Server: ServerConfig{
+					Port:         70000,
+					ReadTimeout:  30,
+					WriteTimeout: 60,
+					IdleTimeout:  120,
+				},
 				Security: SecurityConfig{
 					RateLimit: RateLimitConfig{
 						RequestsPerSecond: 10,
@@ -402,6 +428,12 @@ func TestValidateConfig(t *testing.T) {
 					Level:  "info",
 					Format: "json",
 				},
+				Scraper: ScraperConfig{
+					TimeoutSeconds: 30,
+					MaxRetries:     3,
+					RetryBackoff:   2,
+					MaxContentSize: 10485760,
+				},
 			},
 			expectError: true,
 			errorMsg:    "server port must be between 1 and 65535",
@@ -409,7 +441,12 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "Invalid rate limit - zero requests per second",
 			config: Config{
-				Server: ServerConfig{Port: 8080},
+				Server: ServerConfig{
+					Port:         8080,
+					ReadTimeout:  30,
+					WriteTimeout: 60,
+					IdleTimeout:  120,
+				},
 				Security: SecurityConfig{
 					RateLimit: RateLimitConfig{
 						RequestsPerSecond: 0,
@@ -420,6 +457,12 @@ func TestValidateConfig(t *testing.T) {
 					Level:  "info",
 					Format: "json",
 				},
+				Scraper: ScraperConfig{
+					TimeoutSeconds: 30,
+					MaxRetries:     3,
+					RetryBackoff:   2,
+					MaxContentSize: 10485760,
+				},
 			},
 			expectError: true,
 			errorMsg:    "rate limit requests per second must be at least 1",
@@ -427,7 +470,12 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "Invalid rate limit - zero burst",
 			config: Config{
-				Server: ServerConfig{Port: 8080},
+				Server: ServerConfig{
+					Port:         8080,
+					ReadTimeout:  30,
+					WriteTimeout: 60,
+					IdleTimeout:  120,
+				},
 				Security: SecurityConfig{
 					RateLimit: RateLimitConfig{
 						RequestsPerSecond: 10,
@@ -438,6 +486,12 @@ func TestValidateConfig(t *testing.T) {
 					Level:  "info",
 					Format: "json",
 				},
+				Scraper: ScraperConfig{
+					TimeoutSeconds: 30,
+					MaxRetries:     3,
+					RetryBackoff:   2,
+					MaxContentSize: 10485760,
+				},
 			},
 			expectError: true,
 			errorMsg:    "rate limit burst must be at least 1",
@@ -445,7 +499,12 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "Invalid log level",
 			config: Config{
-				Server: ServerConfig{Port: 8080},
+				Server: ServerConfig{
+					Port:         8080,
+					ReadTimeout:  30,
+					WriteTimeout: 60,
+					IdleTimeout:  120,
+				},
 				Security: SecurityConfig{
 					RateLimit: RateLimitConfig{
 						RequestsPerSecond: 10,
@@ -456,6 +515,12 @@ func TestValidateConfig(t *testing.T) {
 					Level:  "invalid",
 					Format: "json",
 				},
+				Scraper: ScraperConfig{
+					TimeoutSeconds: 30,
+					MaxRetries:     3,
+					RetryBackoff:   2,
+					MaxContentSize: 10485760,
+				},
 			},
 			expectError: true,
 			errorMsg:    "logging level must be one of: debug, info, warn, error",
@@ -463,7 +528,12 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "Invalid log format",
 			config: Config{
-				Server: ServerConfig{Port: 8080},
+				Server: ServerConfig{
+					Port:         8080,
+					ReadTimeout:  30,
+					WriteTimeout: 60,
+					IdleTimeout:  120,
+				},
 				Security: SecurityConfig{
 					RateLimit: RateLimitConfig{
 						RequestsPerSecond: 10,
@@ -473,6 +543,12 @@ func TestValidateConfig(t *testing.T) {
 				Logging: LoggingConfig{
 					Level:  "info",
 					Format: "invalid",
+				},
+				Scraper: ScraperConfig{
+					TimeoutSeconds: 30,
+					MaxRetries:     3,
+					RetryBackoff:   2,
+					MaxContentSize: 10485760,
 				},
 			},
 			expectError: true,

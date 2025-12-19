@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/toozej/go-listen/internal/middleware"
 	"github.com/toozej/go-listen/internal/services/playlist"
+	"github.com/toozej/go-listen/internal/services/scraper"
 	"github.com/toozej/go-listen/internal/services/spotify"
 	"github.com/toozej/go-listen/internal/types"
 	"github.com/toozej/go-listen/pkg/config"
@@ -21,11 +22,18 @@ import (
 //go:embed static/*
 var staticFiles embed.FS
 
+// ScraperService defines the interface for web scraping operations
+type ScraperService interface {
+	ScrapeArtists(url, cssSelector string) ([]string, error)
+	ScrapeAndAddToPlaylist(url, cssSelector, playlistID string, force bool) (*scraper.ScrapeResult, error)
+}
+
 // Server represents the HTTP server
 type Server struct {
 	router             *http.ServeMux
 	spotify            types.SpotifyService
 	playlist           types.PlaylistManager
+	scraper            ScraperService
 	config             *config.Config
 	logger             *logging.Logger
 	rateLimiter        *middleware.RateLimiter
@@ -109,13 +117,16 @@ func (s *Server) Start() error {
 	s.server = &http.Server{
 		Addr:         s.config.Server.Address(),
 		Handler:      s.router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		ReadTimeout:  time.Duration(s.config.Server.ReadTimeout) * time.Second,
+		WriteTimeout: time.Duration(s.config.Server.WriteTimeout) * time.Second,
+		IdleTimeout:  time.Duration(s.config.Server.IdleTimeout) * time.Second,
 	}
 
 	s.logger.WithComponent("server").WithFields(logrus.Fields{
-		"address": s.config.Server.Address(),
+		"address":       s.config.Server.Address(),
+		"read_timeout":  s.config.Server.ReadTimeout,
+		"write_timeout": s.config.Server.WriteTimeout,
+		"idle_timeout":  s.config.Server.IdleTimeout,
 	}).Info("Starting HTTP server")
 	return s.server.ListenAndServe()
 }
@@ -124,6 +135,21 @@ func (s *Server) Start() error {
 func (s *Server) Stop(ctx context.Context) error {
 	s.logger.WithComponent("server").Info("Shutting down HTTP server")
 	return s.server.Shutdown(ctx)
+}
+
+// SetScraperService sets the scraper service for the server
+func (s *Server) SetScraperService(scraper ScraperService) {
+	s.scraper = scraper
+}
+
+// GetSpotifyService returns the server's Spotify service for reuse by other components
+func (s *Server) GetSpotifyService() types.SpotifyService {
+	return s.spotify
+}
+
+// GetPlaylistManager returns the server's playlist manager for reuse by other components
+func (s *Server) GetPlaylistManager() types.PlaylistManager {
+	return s.playlist
 }
 
 // setupRoutes configures all HTTP routes with security and logging middleware
@@ -146,6 +172,7 @@ func (s *Server) setupRoutes() {
 	protectedMux.HandleFunc("/api/add-artist", s.handleAddArtist)
 	protectedMux.HandleFunc("/api/playlists", s.handleGetPlaylists)
 	protectedMux.HandleFunc("/api/auth-status", s.handleAuthStatus)
+	protectedMux.HandleFunc("/api/scrape-artists", s.handleScrapeArtists)
 
 	// Apply middleware chain: logging -> security
 	var handler http.Handler = protectedMux
@@ -328,6 +355,64 @@ func (s *Server) handleAddArtist(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleScrapeArtists handles scraping artists from a URL and adding them to a playlist
+func (s *Server) handleScrapeArtists(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Check if scraper service is available
+	if s.scraper == nil {
+		s.logger.WithContext(r.Context()).WithField("component", "server").Error("Scraper service not initialized")
+		s.writeJSONError(w, "Scraper service not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req types.ScrapeArtistsRequest
+	if err := s.parseJSONRequest(r, &req); err != nil {
+		s.logger.WithContext(r.Context()).WithField("component", "server").WithError(err).Warn("Invalid JSON request")
+		s.writeJSONError(w, "Invalid request format", http.StatusBadRequest)
+		return
+	}
+
+	// Validate request
+	if err := s.validateScrapeArtistsRequest(&req); err != nil {
+		s.logger.WithContext(r.Context()).WithError(err).WithFields(logrus.Fields{
+			"component":    "server",
+			"url":          req.URL,
+			"css_selector": req.CSSSelector,
+			"playlist_id":  req.PlaylistID,
+		}).Warn("Invalid scrape artists request")
+		s.writeJSONError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	s.logger.WithContext(r.Context()).WithFields(logrus.Fields{
+		"component":    "server",
+		"url":          req.URL,
+		"css_selector": req.CSSSelector,
+		"playlist_id":  req.PlaylistID,
+		"force":        req.Force,
+	}).Info("Processing scrape artists request")
+
+	// Perform scraping operation
+	result, err := s.scraper.ScrapeAndAddToPlaylist(req.URL, req.CSSSelector, req.PlaylistID, req.Force)
+	if err != nil {
+		s.logger.WithContext(r.Context()).WithField("component", "server").WithError(err).Error("Failed to scrape artists")
+		s.writeJSONError(w, "Failed to scrape artists: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Return successful response
+	response := types.ScrapeArtistsResponse{
+		Success: true,
+		Data:    result,
+	}
+
+	s.writeJSONResponse(w, response, http.StatusOK)
+}
+
 // Helper methods
 
 // parseJSONRequest parses JSON request body into the provided struct
@@ -348,6 +433,31 @@ func (s *Server) validateAddArtistRequest(req *types.AddArtistRequest) error {
 	if strings.TrimSpace(req.PlaylistID) == "" {
 		return fmt.Errorf("playlist ID is required")
 	}
+	return nil
+}
+
+// validateScrapeArtistsRequest validates the scrape artists request
+func (s *Server) validateScrapeArtistsRequest(req *types.ScrapeArtistsRequest) error {
+	// Validate URL
+	if strings.TrimSpace(req.URL) == "" {
+		return fmt.Errorf("URL is required")
+	}
+
+	// Basic URL validation - check for http/https scheme
+	if !strings.HasPrefix(req.URL, "http://") && !strings.HasPrefix(req.URL, "https://") {
+		return fmt.Errorf("URL must start with http:// or https://")
+	}
+
+	// Validate CSS selector length
+	if len(req.CSSSelector) > 500 {
+		return fmt.Errorf("CSS selector too long (max 500 characters)")
+	}
+
+	// Validate playlist ID
+	if strings.TrimSpace(req.PlaylistID) == "" {
+		return fmt.Errorf("playlist ID is required")
+	}
+
 	return nil
 }
 

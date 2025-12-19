@@ -9,9 +9,19 @@ class GoListenApp {
         this.messageArea = document.getElementById('message-area');
         this.playerArea = document.getElementById('spotify-player');
 
+        // Scraping form elements
+        this.scrapeForm = document.getElementById('scrape-form');
+        this.scrapeUrlInput = document.getElementById('scrape-url');
+        this.cssSelectorInput = document.getElementById('css-selector');
+        this.scrapePlaylistSelect = document.getElementById('scrape-playlist-select');
+        this.scrapeButton = document.getElementById('scrape-button');
+        this.scrapeMessageArea = document.getElementById('scrape-message-area');
+        this.scrapeResults = document.getElementById('scrape-results');
+
         // State management
         this.playlists = [];
         this.isLoading = false;
+        this.isScraping = false;
         this.isUpdatingDropdown = false; // Flag to prevent unwanted player updates
         this.csrfToken = null;
 
@@ -98,6 +108,31 @@ class GoListenApp {
 
         // Handle form reset
         this.form.addEventListener('reset', () => this.resetForm());
+
+        // Scraping form event listeners
+        this.scrapeForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.handleScrapeSubmit(e);
+        });
+
+        this.scrapeForm.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') {
+                e.preventDefault();
+                e.stopPropagation();
+                this.handleScrapeSubmit(e);
+            }
+        });
+
+        this.scrapeButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.handleScrapeSubmit(e);
+        });
+
+        // Scrape URL validation
+        this.scrapeUrlInput.addEventListener('input', () => this.validateScrapeUrl());
+        this.scrapeUrlInput.addEventListener('blur', () => this.validateScrapeUrl());
     }
 
     setupFormValidation() {
@@ -339,9 +374,11 @@ class GoListenApp {
 
         // Preserve current selection to prevent unwanted resets
         const currentSelection = this.playlistSelect.value;
+        const currentScrapeSelection = this.scrapePlaylistSelect.value;
 
-        // Clear existing options
+        // Clear existing options for both dropdowns
         this.playlistSelect.innerHTML = '';
+        this.scrapePlaylistSelect.innerHTML = '';
 
         if (playlists.length === 0) {
             const option = document.createElement('option');
@@ -350,6 +387,10 @@ class GoListenApp {
             option.disabled = true;
             this.playlistSelect.appendChild(option);
             this.playlistSelect.disabled = true;
+
+            const scrapeOption = option.cloneNode(true);
+            this.scrapePlaylistSelect.appendChild(scrapeOption);
+            this.scrapePlaylistSelect.disabled = true;
             this.isUpdatingDropdown = false;
             return;
         }
@@ -360,7 +401,10 @@ class GoListenApp {
         defaultOption.textContent = 'Select a playlist...';
         this.playlistSelect.appendChild(defaultOption);
 
-        // Add playlist options
+        const scrapeDefaultOption = defaultOption.cloneNode(true);
+        this.scrapePlaylistSelect.appendChild(scrapeDefaultOption);
+
+        // Add playlist options to both dropdowns
         playlists.forEach(playlist => {
             const option = document.createElement('option');
             option.value = playlist.id;
@@ -368,16 +412,29 @@ class GoListenApp {
             option.dataset.embedUrl = playlist.embed_url;
             option.dataset.name = playlist.name.toLowerCase();
             this.playlistSelect.appendChild(option);
+
+            const scrapeOption = option.cloneNode(true);
+            scrapeOption.dataset.embedUrl = playlist.embed_url;
+            scrapeOption.dataset.name = playlist.name.toLowerCase();
+            this.scrapePlaylistSelect.appendChild(scrapeOption);
         });
 
-        // Always enable the dropdown if we have playlists
+        // Always enable the dropdowns if we have playlists
         this.playlistSelect.disabled = false;
+        this.scrapePlaylistSelect.disabled = false;
 
-        // Restore previous selection if it still exists in the filtered list
+        // Restore previous selections if they still exist
         if (currentSelection) {
             const optionExists = Array.from(this.playlistSelect.options).some(option => option.value === currentSelection);
             if (optionExists) {
                 this.playlistSelect.value = currentSelection;
+            }
+        }
+
+        if (currentScrapeSelection) {
+            const optionExists = Array.from(this.scrapePlaylistSelect.options).some(option => option.value === currentScrapeSelection);
+            if (optionExists) {
+                this.scrapePlaylistSelect.value = currentScrapeSelection;
             }
         }
 
@@ -859,6 +916,355 @@ class GoListenApp {
         this.messageArea.style.display = 'none';
         this.messageArea.textContent = '';
         this.messageArea.className = 'message-area';
+    }
+
+    async handleScrapeSubmit(e) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Prevent multiple simultaneous submissions
+        if (this.isScraping) {
+            return;
+        }
+
+        // Clear any existing messages and results
+        this.hideScrapeMessage();
+        this.hideScrapeResults();
+
+        // Validate form
+        if (!this.validateScrapeForm()) {
+            return;
+        }
+
+        const url = this.scrapeUrlInput.value.trim();
+        const cssSelector = this.cssSelectorInput.value.trim();
+        const playlistId = this.scrapePlaylistSelect.value;
+
+        await this.scrapeAndAddArtists(url, cssSelector, playlistId);
+    }
+
+    validateScrapeForm() {
+        let isValid = true;
+
+        // Validate URL
+        const url = this.scrapeUrlInput.value.trim();
+        if (!url) {
+            this.showFieldError(this.scrapeUrlInput, 'URL is required');
+            isValid = false;
+        } else if (!this.isValidUrl(url)) {
+            this.showFieldError(this.scrapeUrlInput, 'Please enter a valid URL');
+            isValid = false;
+        } else {
+            this.clearFieldError(this.scrapeUrlInput);
+        }
+
+        // Validate playlist selection
+        const playlistId = this.scrapePlaylistSelect.value;
+        if (!playlistId) {
+            this.showFieldError(this.scrapePlaylistSelect, 'Please select a playlist');
+            isValid = false;
+        } else {
+            this.clearFieldError(this.scrapePlaylistSelect);
+        }
+
+        return isValid;
+    }
+
+    validateScrapeUrl() {
+        const url = this.scrapeUrlInput.value.trim();
+
+        if (url && !this.isValidUrl(url)) {
+            this.showFieldError(this.scrapeUrlInput, 'Please enter a valid URL');
+        } else {
+            this.clearFieldError(this.scrapeUrlInput);
+        }
+    }
+
+    isValidUrl(string) {
+        try {
+            const url = new URL(string);
+            return url.protocol === 'http:' || url.protocol === 'https:';
+        } catch (_) {
+            return false;
+        }
+    }
+
+    async scrapeAndAddArtists(url, cssSelector, playlistId) {
+        this.setScrapeLoading(true);
+        this.hideScrapeMessage();
+        this.hideScrapeResults();
+
+        try {
+            const selectedOption = this.scrapePlaylistSelect.selectedOptions[0];
+            const playlistName = selectedOption ? selectedOption.textContent.split(' (')[0] : 'selected playlist';
+
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            };
+
+            // Add CSRF token if available
+            if (this.csrfToken) {
+                headers['X-CSRF-Token'] = this.csrfToken;
+            }
+
+            const response = await fetch('/api/scrape-artists', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({
+                    url: url,
+                    css_selector: cssSelector,
+                    playlist_id: playlistId,
+                    force: false
+                })
+            });
+
+            // Handle HTTP errors
+            if (!response.ok) {
+                let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+
+                try {
+                    const errorData = await response.json();
+                    if (errorData.error) {
+                        errorMessage = errorData.error;
+                    }
+                } catch (e) {
+                    // Use default HTTP error message if JSON parsing fails
+                }
+
+                throw new Error(errorMessage);
+            }
+
+            const data = await response.json();
+
+            if (data.success && data.data) {
+                const result = data.data;
+                this.displayScrapeResults(result, playlistName);
+                
+                // Show success message
+                const message = `Found ${result.artists_found.length} artists, successfully added ${result.success_count} to ${playlistName}`;
+                this.showScrapeMessage(message, 'success', 5000);
+
+                // Clear form on success
+                this.scrapeUrlInput.value = '';
+                this.cssSelectorInput.value = '';
+
+                // Refresh player to show new tracks
+                this.refreshPlayer();
+
+            } else {
+                const message = data.error || 'Failed to scrape artists';
+                this.showScrapeMessage(message, 'error');
+            }
+
+        } catch (error) {
+            console.error('Error scraping artists:', error);
+
+            let userMessage = 'Error scraping artists';
+            if (error.message.includes('Failed to fetch')) {
+                userMessage = 'Network error. Please check your connection and try again.';
+            } else if (error.message.includes('HTTP 429')) {
+                userMessage = 'Too many requests. Please wait a moment and try again.';
+            } else if (error.message.includes('HTTP 500')) {
+                userMessage = 'Server error. Please try again later.';
+            } else {
+                userMessage = `Error: ${error.message}`;
+            }
+
+            this.showScrapeMessage(userMessage, 'error');
+
+        } finally {
+            this.setScrapeLoading(false);
+        }
+    }
+
+    displayScrapeResults(result, playlistName) {
+        // Clear previous results
+        this.scrapeResults.innerHTML = '';
+
+        // Create summary section
+        const summary = document.createElement('div');
+        summary.className = 'scrape-summary';
+
+        const summaryTitle = document.createElement('h3');
+        summaryTitle.textContent = 'Scraping Results';
+        summary.appendChild(summaryTitle);
+
+        const stats = document.createElement('div');
+        stats.className = 'scrape-summary-stats';
+
+        // Success count
+        const successStat = this.createStatElement('Success', result.success_count, 'success');
+        stats.appendChild(successStat);
+
+        // Failure count
+        if (result.failure_count > 0) {
+            const failureStat = this.createStatElement('Failed', result.failure_count, 'error');
+            stats.appendChild(failureStat);
+        }
+
+        // Duplicate count
+        if (result.duplicate_count > 0) {
+            const duplicateStat = this.createStatElement('Duplicates', result.duplicate_count, 'duplicate');
+            stats.appendChild(duplicateStat);
+        }
+
+        // Total tracks added
+        const tracksStat = this.createStatElement('Tracks Added', result.total_tracks_added, 'success');
+        stats.appendChild(tracksStat);
+
+        summary.appendChild(stats);
+        this.scrapeResults.appendChild(summary);
+
+        // Create artist results section
+        if (result.match_results && result.match_results.length > 0) {
+            const artistResults = document.createElement('div');
+            artistResults.className = 'artist-results';
+
+            result.match_results.forEach(match => {
+                const artistResult = this.createArtistResultElement(match);
+                artistResults.appendChild(artistResult);
+            });
+
+            this.scrapeResults.appendChild(artistResults);
+        }
+
+        // Show results
+        this.scrapeResults.classList.add('visible');
+        this.scrapeResults.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    createStatElement(label, value, type) {
+        const stat = document.createElement('div');
+        stat.className = 'scrape-stat';
+
+        const statLabel = document.createElement('div');
+        statLabel.className = 'scrape-stat-label';
+        statLabel.textContent = label;
+
+        const statValue = document.createElement('div');
+        statValue.className = `scrape-stat-value ${type}`;
+        statValue.textContent = value;
+
+        stat.appendChild(statLabel);
+        stat.appendChild(statValue);
+
+        return stat;
+    }
+
+    createArtistResultElement(match) {
+        const result = document.createElement('div');
+        
+        let status = 'error';
+        let iconPath = 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z'; // Error icon
+        
+        if (match.was_duplicate) {
+            status = 'duplicate';
+            iconPath = 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'; // Check icon
+        } else if (match.matched && match.tracks_added > 0) {
+            status = 'success';
+            iconPath = 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'; // Check icon
+        }
+        
+        result.className = `artist-result ${status}`;
+
+        // Icon
+        const icon = document.createElement('div');
+        icon.className = 'artist-result-icon';
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('aria-hidden', 'true');
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('fill', 'currentColor');
+        path.setAttribute('d', iconPath);
+        svg.appendChild(path);
+        icon.appendChild(svg);
+        result.appendChild(icon);
+
+        // Content
+        const content = document.createElement('div');
+        content.className = 'artist-result-content';
+
+        const name = document.createElement('div');
+        name.className = 'artist-result-name';
+        name.textContent = match.artist ? match.artist.name : match.query;
+
+        const statusText = document.createElement('div');
+        statusText.className = 'artist-result-status';
+        
+        if (match.was_duplicate) {
+            statusText.textContent = 'Already in playlist (skipped)';
+        } else if (match.matched && match.tracks_added > 0) {
+            statusText.textContent = `Successfully added ${match.tracks_added} tracks`;
+        } else if (match.error) {
+            statusText.textContent = match.error;
+        } else {
+            statusText.textContent = 'Not found on Spotify';
+        }
+
+        content.appendChild(name);
+        content.appendChild(statusText);
+
+        if (match.confidence > 0) {
+            const confidence = document.createElement('div');
+            confidence.className = 'artist-result-tracks';
+            confidence.textContent = `Match confidence: ${(match.confidence * 100).toFixed(0)}%`;
+            content.appendChild(confidence);
+        }
+
+        result.appendChild(content);
+
+        return result;
+    }
+
+    showScrapeMessage(message, type, autoHideMs = 0) {
+        this.scrapeMessageArea.textContent = message;
+        this.scrapeMessageArea.className = `message-area ${type}`;
+        this.scrapeMessageArea.style.display = 'block';
+
+        // Scroll message into view if needed
+        this.scrapeMessageArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        // Auto-hide messages after specified time
+        if (autoHideMs > 0) {
+            setTimeout(() => {
+                this.hideScrapeMessage();
+            }, autoHideMs);
+        }
+
+        // Announce to screen readers
+        this.scrapeMessageArea.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
+    }
+
+    hideScrapeMessage() {
+        this.scrapeMessageArea.style.display = 'none';
+        this.scrapeMessageArea.textContent = '';
+        this.scrapeMessageArea.className = 'message-area';
+    }
+
+    hideScrapeResults() {
+        this.scrapeResults.classList.remove('visible');
+        this.scrapeResults.innerHTML = '';
+    }
+
+    setScrapeLoading(loading) {
+        this.isScraping = loading;
+
+        if (loading) {
+            this.scrapeButton.classList.add('loading');
+            this.scrapeForm.classList.add('loading');
+            this.scrapeUrlInput.disabled = true;
+            this.cssSelectorInput.disabled = true;
+            this.scrapePlaylistSelect.disabled = true;
+        } else {
+            this.scrapeButton.classList.remove('loading');
+            this.scrapeForm.classList.remove('loading');
+            this.scrapeUrlInput.disabled = false;
+            this.cssSelectorInput.disabled = false;
+            this.scrapePlaylistSelect.disabled = this.playlists.length === 0;
+        }
     }
 
     setLoading(loading) {

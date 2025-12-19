@@ -56,11 +56,15 @@ type Config struct {
 	Spotify  SpotifyConfig  `envPrefix:"SPOTIFY_"`
 	Security SecurityConfig `envPrefix:"SECURITY_"`
 	Logging  LoggingConfig  `envPrefix:"LOGGING_"`
+	Scraper  ScraperConfig  `envPrefix:"SCRAPER_"`
 }
 
 type ServerConfig struct {
-	Host string `env:"HOST" envDefault:"127.0.0.1"`
-	Port int    `env:"PORT" envDefault:"8080"`
+	Host         string `env:"HOST" envDefault:"127.0.0.1"`
+	Port         int    `env:"PORT" envDefault:"8080"`
+	ReadTimeout  int    `env:"READ_TIMEOUT_SECONDS" envDefault:"30"`
+	WriteTimeout int    `env:"WRITE_TIMEOUT_SECONDS" envDefault:"60"`
+	IdleTimeout  int    `env:"IDLE_TIMEOUT_SECONDS" envDefault:"120"`
 }
 
 type SpotifyConfig struct {
@@ -83,6 +87,14 @@ type LoggingConfig struct {
 	Format     string `env:"FORMAT" envDefault:"text"`
 	Output     string `env:"OUTPUT" envDefault:"stdout"`
 	EnableHTTP bool   `env:"ENABLE_HTTP" envDefault:"true"`
+}
+
+type ScraperConfig struct {
+	TimeoutSeconds int    `env:"TIMEOUT_SECONDS" envDefault:"30"`
+	MaxRetries     int    `env:"MAX_RETRIES" envDefault:"3"`
+	RetryBackoff   int    `env:"RETRY_BACKOFF_SECONDS" envDefault:"2"`
+	UserAgent      string `env:"USER_AGENT" envDefault:"go-listen/1.0 (Web Scraper)"`
+	MaxContentSize int64  `env:"MAX_CONTENT_SIZE" envDefault:"10485760"` // 10MB in bytes
 }
 
 // Address returns the server address
@@ -201,6 +213,15 @@ func validateConfig(conf *Config) error {
 	if conf.Server.Port < 1 || conf.Server.Port > 65535 {
 		errors = append(errors, "server port must be between 1 and 65535")
 	}
+	if conf.Server.ReadTimeout < 1 {
+		errors = append(errors, "server read timeout must be at least 1 second")
+	}
+	if conf.Server.WriteTimeout < 1 {
+		errors = append(errors, "server write timeout must be at least 1 second")
+	}
+	if conf.Server.IdleTimeout < 1 {
+		errors = append(errors, "server idle timeout must be at least 1 second")
+	}
 
 	// Validate Spotify configuration (warn but don't fail)
 	if conf.Spotify.ClientID == "" {
@@ -232,6 +253,20 @@ func validateConfig(conf *Config) error {
 	}
 	if !validLogFormats[conf.Logging.Format] {
 		errors = append(errors, "logging format must be one of: json, text")
+	}
+
+	// Validate scraper configuration
+	if conf.Scraper.TimeoutSeconds < 1 {
+		errors = append(errors, "scraper timeout must be at least 1 second")
+	}
+	if conf.Scraper.MaxRetries < 0 {
+		errors = append(errors, "scraper max retries must be non-negative")
+	}
+	if conf.Scraper.RetryBackoff < 0 {
+		errors = append(errors, "scraper retry backoff must be non-negative")
+	}
+	if conf.Scraper.MaxContentSize < 1 {
+		errors = append(errors, "scraper max content size must be at least 1 byte")
 	}
 
 	if len(errors) > 0 {

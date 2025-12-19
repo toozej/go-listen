@@ -59,6 +59,59 @@
                 <div id="message-area" class="message-area" role="alert" aria-live="polite"></div>
             </section>
 
+            <section class="scrape-section" aria-labelledby="scrape-heading">
+                <h2 id="scrape-heading">Discover Artists from Web</h2>
+                <form id="scrape-form" novalidate onsubmit="return false;">
+                    <div class="form-group">
+                        <label for="scrape-url">Website URL:</label>
+                        <input 
+                            type="url" 
+                            id="scrape-url" 
+                            name="url" 
+                            required 
+                            autocomplete="off"
+                            placeholder="https://example.com/artist-recommendations"
+                            aria-describedby="url-help"
+                        >
+                        <small id="url-help" class="form-help">Enter a URL containing artist names (e.g., Reddit posts, music blogs)</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="css-selector">CSS Selector (optional):</label>
+                        <input 
+                            type="text" 
+                            id="css-selector" 
+                            name="css_selector" 
+                            autocomplete="off"
+                            placeholder="div.content, article.post"
+                            aria-describedby="selector-help"
+                        >
+                        <small id="selector-help" class="form-help">Target specific page sections (leave empty to scrape entire page)</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="scrape-playlist-select">Select Playlist:</label>
+                        <div class="select-wrapper">
+                            <select id="scrape-playlist-select" name="playlist_id" required aria-describedby="scrape-playlist-help">
+                                <option value="">Loading playlists...</option>
+                            </select>
+                            <div class="select-arrow" aria-hidden="true"></div>
+                        </div>
+                        <small id="scrape-playlist-help" class="form-help">Choose where to add discovered artists</small>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="submit" id="scrape-button" class="btn btn-primary">
+                            <span class="btn-text">Scrape & Add Artists</span>
+                            <span class="btn-spinner" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="scrape-message-area" class="message-area" role="alert" aria-live="polite"></div>
+                <div id="scrape-results" class="scrape-results"></div>
+            </section>
+
             <section class="player-section" aria-labelledby="player-heading">
                 <h2 id="player-heading" class="visually-hidden">Spotify Player</h2>
                 <div id="spotify-player" class="player-container">

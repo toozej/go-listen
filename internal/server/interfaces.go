@@ -20,4 +20,6 @@ type DuplicateResult = types.DuplicateResult
 type AddArtistRequest = types.AddArtistRequest
 type APIResponse = types.APIResponse
 type PlaylistSearchRequest = types.PlaylistSearchRequest
+type ScrapeArtistsRequest = types.ScrapeArtistsRequest
+type ScrapeArtistsResponse = types.ScrapeArtistsResponse
 type WebUIResponse = types.WebUIResponse

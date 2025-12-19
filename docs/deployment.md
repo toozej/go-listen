@@ -91,6 +91,13 @@ services:
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8080
       
+      # Scraper configuration
+      - SCRAPER_TIMEOUT=30s
+      - SCRAPER_MAX_RETRIES=3
+      - SCRAPER_RETRY_BACKOFF=2s
+      - SCRAPER_USER_AGENT=go-listen/1.0
+      - SCRAPER_MAX_CONTENT_SIZE=10485760
+      
       # Security configuration
       - SECURITY_RATE_LIMIT_REQUESTS_PER_SECOND=10
       - SECURITY_RATE_LIMIT_BURST=20
@@ -188,6 +195,9 @@ Environment=SPOTIFY_CLIENT_ID=your_client_id
 Environment=SPOTIFY_CLIENT_SECRET=your_client_secret
 Environment=SERVER_HOST=0.0.0.0
 Environment=SERVER_PORT=8080
+Environment=SCRAPER_TIMEOUT=30s
+Environment=SCRAPER_MAX_RETRIES=3
+Environment=SCRAPER_RETRY_BACKOFF=2s
 Environment=LOGGING_LEVEL=info
 Environment=LOGGING_FORMAT=json
 Environment=LOGGING_ENABLE_HTTP=true
@@ -248,6 +258,11 @@ metadata:
 data:
   SERVER_HOST: "0.0.0.0"
   SERVER_PORT: "8080"
+  SCRAPER_TIMEOUT: "30s"
+  SCRAPER_MAX_RETRIES: "3"
+  SCRAPER_RETRY_BACKOFF: "2s"
+  SCRAPER_USER_AGENT: "go-listen/1.0"
+  SCRAPER_MAX_CONTENT_SIZE: "10485760"
   LOGGING_LEVEL: "info"
   LOGGING_FORMAT: "json"
   LOGGING_ENABLE_HTTP: "true"

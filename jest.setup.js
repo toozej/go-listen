@@ -9,6 +9,7 @@ global.GoListenApp = class MockGoListenApp {
         this.playlists = [];
         this.filteredPlaylists = [];
         this.isLoading = false;
+        this.isScraping = false;
         this.searchTimeout = null;
         this.isUpdatingDropdown = false;
         this.csrfToken = null;
@@ -57,6 +58,63 @@ global.GoListenApp = class MockGoListenApp {
             scrollIntoView: jest.fn()
         };
         this.playerArea = { innerHTML: '', appendChild: jest.fn(), style: {} };
+        
+        // Scraping form elements
+        this.scrapeForm = { 
+            addEventListener: jest.fn(), 
+            style: {}, 
+            classList: { add: jest.fn(), remove: jest.fn() } 
+        };
+        this.scrapeUrlInput = { 
+            addEventListener: jest.fn(), 
+            value: '', 
+            disabled: false,
+            setCustomValidity: jest.fn(),
+            classList: { add: jest.fn(), remove: jest.fn() },
+            validity: { valid: true },
+            reportValidity: jest.fn()
+        };
+        this.cssSelectorInput = { 
+            addEventListener: jest.fn(), 
+            value: '', 
+            disabled: false
+        };
+        this.scrapePlaylistSelect = { 
+            addEventListener: jest.fn(), 
+            value: '', 
+            disabled: false,
+            innerHTML: '',
+            appendChild: jest.fn(),
+            selectedOptions: [],
+            options: [],
+            setCustomValidity: jest.fn(),
+            classList: { add: jest.fn(), remove: jest.fn() },
+            validity: { valid: true },
+            reportValidity: jest.fn()
+        };
+        this.scrapeButton = { 
+            addEventListener: jest.fn(), 
+            disabled: false,
+            classList: { add: jest.fn(), remove: jest.fn() }
+        };
+        this.scrapeMessageArea = { 
+            textContent: '', 
+            className: '', 
+            style: { display: 'none' },
+            setAttribute: jest.fn(),
+            scrollIntoView: jest.fn()
+        };
+        this.scrapeResults = { 
+            innerHTML: '', 
+            classList: { 
+                add: jest.fn(), 
+                remove: jest.fn(), 
+                contains: jest.fn(() => false) 
+            },
+            appendChild: jest.fn(),
+            querySelector: jest.fn(),
+            scrollIntoView: jest.fn()
+        };
     }
 
     init() {}
@@ -81,6 +139,21 @@ global.GoListenApp = class MockGoListenApp {
     populatePlaylistSelect(playlists) {
         this.isUpdatingDropdown = true;
         this.playlistSelect.disabled = playlists.length === 0;
+        this.scrapePlaylistSelect.disabled = playlists.length === 0;
+        
+        // Mock options for both selects
+        const mockOptions = [{ value: '', textContent: 'Select a playlist...' }];
+        playlists.forEach(playlist => {
+            mockOptions.push({
+                value: playlist.id,
+                textContent: `${playlist.name} (${playlist.track_count} tracks)`,
+                dataset: { embedUrl: playlist.embed_url, name: playlist.name.toLowerCase() }
+            });
+        });
+        
+        this.playlistSelect.options = mockOptions;
+        this.scrapePlaylistSelect.options = mockOptions;
+        
         setTimeout(() => { this.isUpdatingDropdown = false; }, 100);
     }
     
@@ -167,6 +240,109 @@ global.GoListenApp = class MockGoListenApp {
         const isDesktop = !isMobile && !isTablet;
         
         return { isMobile, isTablet, isDesktop, compatible: true };
+    }
+    
+    // Scraping methods
+    validateScrapeForm() {
+        const url = this.scrapeUrlInput.value.trim();
+        const playlistId = this.scrapePlaylistSelect.value;
+        
+        if (!url) return false;
+        if (!this.isValidUrl(url)) return false;
+        if (!playlistId) return false;
+        
+        return true;
+    }
+    
+    isValidUrl(string) {
+        try {
+            const url = new URL(string);
+            return url.protocol === 'http:' || url.protocol === 'https:';
+        } catch (_) {
+            return false;
+        }
+    }
+    
+    setScrapeLoading(loading) {
+        this.isScraping = loading;
+        this.scrapeUrlInput.disabled = loading;
+        this.cssSelectorInput.disabled = loading;
+        this.scrapePlaylistSelect.disabled = loading || this.playlists.length === 0;
+        this.scrapeButton.disabled = loading;
+    }
+    
+    showScrapeMessage(message, type) {
+        this.scrapeMessageArea.textContent = message;
+        this.scrapeMessageArea.className = `message-area ${type}`;
+        this.scrapeMessageArea.style.display = 'block';
+    }
+    
+    hideScrapeMessage() {
+        this.scrapeMessageArea.style.display = 'none';
+        this.scrapeMessageArea.textContent = '';
+        this.scrapeMessageArea.className = 'message-area';
+    }
+    
+    hideScrapeResults() {
+        this.scrapeResults.classList.remove('visible');
+        this.scrapeResults.innerHTML = '';
+    }
+    
+    createStatElement(label, value, type) {
+        const stat = document.createElement('div');
+        stat.className = 'scrape-stat';
+        
+        const statLabel = document.createElement('div');
+        statLabel.className = 'scrape-stat-label';
+        statLabel.textContent = label;
+        
+        const statValue = document.createElement('div');
+        statValue.className = `scrape-stat-value ${type}`;
+        statValue.textContent = value.toString();
+        
+        stat.appendChild(statLabel);
+        stat.appendChild(statValue);
+        
+        return stat;
+    }
+    
+    createArtistResultElement(match) {
+        const result = document.createElement('div');
+        
+        let status = 'error';
+        if (match.was_duplicate) {
+            status = 'duplicate';
+        } else if (match.matched && match.tracks_added > 0) {
+            status = 'success';
+        }
+        
+        result.className = `artist-result ${status}`;
+        
+        const content = document.createElement('div');
+        content.className = 'artist-result-content';
+        
+        const name = document.createElement('div');
+        name.className = 'artist-result-name';
+        name.textContent = match.artist ? match.artist.name : match.query;
+        
+        const statusText = document.createElement('div');
+        statusText.className = 'artist-result-status';
+        
+        if (match.was_duplicate) {
+            statusText.textContent = 'Already in playlist (skipped)';
+        } else if (match.matched && match.tracks_added > 0) {
+            statusText.textContent = `Successfully added ${match.tracks_added} tracks`;
+        } else if (match.error) {
+            statusText.textContent = match.error;
+        } else {
+            statusText.textContent = 'Not found on Spotify';
+        }
+        
+        content.appendChild(name);
+        content.appendChild(statusText);
+        result.appendChild(content);
+        
+        return result;
     }
 };
 

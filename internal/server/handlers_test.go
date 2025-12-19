@@ -49,6 +49,22 @@ func (m *mockPlaylistManager) FilterPlaylistsBySearch(playlists []types.Playlist
 	return filtered
 }
 
+func (m *mockPlaylistManager) AddTracksToPlaylist(playlistID string, trackIDs []string) error {
+	if m.addError != nil {
+		return m.addError
+	}
+	return nil
+}
+
+func (m *mockPlaylistManager) CheckForDuplicates(playlistID string, trackIDs []string) (*types.DuplicateResult, error) {
+	if m.addError != nil {
+		return nil, m.addError
+	}
+	return &types.DuplicateResult{
+		HasDuplicates: false,
+	}, nil
+}
+
 func createTestServer() (*Server, *mockPlaylistManager) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{

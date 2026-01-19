@@ -198,7 +198,7 @@ homebrew_casks:
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     manpages:
-      - "man/go-listen.1.gz"
+      - "manpages/go-listen.1.gz"
     completions:
       bash: "completions/go-listen.bash"
       zsh: "completions/go-listen.zsh"

@@ -31,4 +31,5 @@ COPY --from=build /go/go-listen/go-listen /go/bin/go-listen
 # Expose port for publishing as web service
 EXPOSE 8080
 # Run the binary.
+USER nonroot
 ENTRYPOINT ["/go/bin/go-listen", "serve"]

@@ -326,7 +326,7 @@ func (w *WebScraper) fetchURL(url string) (string, error) {
 	req.Header.Set("User-Agent", w.config.UserAgent)
 
 	startTime := time.Now()
-	resp, err := w.httpClient.Do(req)
+	resp, err := w.httpClient.Do(req) // #nosec G704 -- URL is from config, not user input
 	duration := time.Since(startTime)
 
 	if err != nil {

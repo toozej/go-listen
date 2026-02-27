@@ -11,6 +11,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const maxFormSize = 1 << 20 // 1 MB
+
 // SecurityMiddleware provides various security protections
 type SecurityMiddleware struct {
 	logger      *log.Logger
@@ -132,9 +134,15 @@ func (sm *SecurityMiddleware) CSRFProtection(next http.Handler) http.Handler {
 		if r.Method == "POST" || r.Method == "PUT" || r.Method == "DELETE" || r.Method == "PATCH" {
 			token := r.Header.Get("X-CSRF-Token")
 			if token == "" {
+				// Limit request body size BEFORE parsing
+				r.Body = http.MaxBytesReader(w, r.Body, maxFormSize)
+
 				// Try to get token from form data
 				if err := r.ParseForm(); err == nil {
 					token = r.FormValue("csrf_token")
+				} else {
+					http.Error(w, "Request too large", http.StatusRequestEntityTooLarge)
+					return
 				}
 			}
 

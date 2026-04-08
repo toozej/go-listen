@@ -8,8 +8,8 @@
     "test:coverage": "jest --coverage"
   },
   "devDependencies": {
-    "jest": "^29.7.0",
-    "jest-environment-jsdom": "^29.7.0"
+    "jest": "^30.3.0",
+    "jest-environment-jsdom": "^30.3.0"
   },
   "jest": {
     "testEnvironment": "jsdom",
@@ -19,6 +19,8 @@
     "collectCoverageFrom": [
       "internal/server/static/js/app.js"
     ],
-    "setupFilesAfterEnv": ["<rootDir>/jest.setup.js"]
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.js"
+    ]
   }
 }

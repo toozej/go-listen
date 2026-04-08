@@ -19,6 +19,8 @@
     "collectCoverageFrom": [
       "internal/server/static/js/app.js"
     ],
-    "setupFilesAfterEnv": ["<rootDir>/jest.setup.js"]
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.js"
+    ]
   }
 }

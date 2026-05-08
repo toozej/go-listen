@@ -10,7 +10,7 @@ require (
 	github.com/leanovate/gopter v0.2.11
 	github.com/muesli/mango-cobra v1.3.0
 	github.com/muesli/roff v0.1.0
-	github.com/sahilm/fuzzy v0.1.1
+	github.com/sahilm/fuzzy v0.1.2
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2
 	github.com/zmb3/spotify/v2 v2.4.3
@@ -23,10 +23,9 @@ require (
 	github.com/awalterschulze/gographviz v2.0.3+incompatible // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/muesli/mango v0.2.0 // indirect
 	github.com/muesli/mango-pflag v0.2.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	golang.org/x/net v0.53.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
 )

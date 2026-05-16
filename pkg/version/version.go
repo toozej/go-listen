@@ -185,12 +185,11 @@ func Command() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			jsonData, err := json.Marshal(info)
+			jsonBytes, err := json.Marshal(info)
 			if err != nil {
 				return err
 			}
-			fmt.Println(string(jsonData))
-
+			fmt.Fprintln(cmd.OutOrStdout(), string(jsonBytes))
 			return nil
 		},
 	}

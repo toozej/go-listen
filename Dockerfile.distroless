@@ -1,5 +1,5 @@
 # setup project and deps
-FROM golang:1.26-trixie AS init
+FROM golang:1.26-bookworm AS init
 
 WORKDIR /go/go-listen/
 
@@ -19,15 +19,13 @@ RUN go test -coverprofile c.out -v ./...
 FROM init AS build
 ARG LDFLAGS
 
-# Install coreutils for sleep and other utilities utilized in devcontainer
-RUN apt-get update && apt-get install --no-install-recommends -y coreutils
-
 RUN CGO_ENABLED=0 go build -ldflags="${LDFLAGS}"
 
-# runtime image
-FROM scratch
+# runtime image including CA certs and tzdata
+FROM gcr.io/distroless/static-debian12:latest
 # Copy our static executable.
 COPY --from=build /go/go-listen/go-listen /go/bin/go-listen
+# Expose port for publishing as web service
+# EXPOSE 8080
 # Run the binary.
-USER nonroot
 ENTRYPOINT ["/go/bin/go-listen", "serve"]

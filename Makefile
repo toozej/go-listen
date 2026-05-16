@@ -29,7 +29,7 @@ LDFLAGS = -s -w \
 # Define the repository URL
 REPO_URL := https://github.com/toozej/go-listen
 
-# Define Docker image info
+# Docker image info
 IMAGE_AUTHOR = toozej
 IMAGE_NAME = go-listen
 IMAGE_TAG = latest
@@ -45,10 +45,10 @@ else
 	OPENER=open
 endif
 
-.PHONY: all vet test build verify run up down install local local-vet local-test local-cover local-run local-kill local-iterate local-release-test local-release local-sign local-verify local-release-verify local-install get-cosign-pub-key docker-login pre-commit-install pre-commit-run pre-commit pre-reqs update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark clean help
+.PHONY: all vet test build verify run up down distroless-build distroless-run install local local-vet local-test local-cover local-run local-kill local-iterate local-release-test local-release local-sign local-verify local-release-verify local-install get-cosign-pub-key docker-login pre-commit-install pre-commit-run pre-commit pre-reqs update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark clean help
 
 all: vet pre-commit clean test build verify run ## Run default workflow via Docker
-local: local-update-deps local-vendor local-vet pre-commit clean local-test local-cover local-build local-sign local-verify local-kill local-run ## Run default workflow using locally installed Golang toolchain
+local: local-update-deps local-vendor local-vet pre-commit clean local-test local-cover local-build local-release-test ## Run default workflow using locally installed Golang toolchain
 local-release-verify: local-release local-sign local-verify ## Release and verify using locally installed Golang toolchain
 pre-reqs: pre-commit-install ## Install pre-commit hooks and necessary binaries
 
@@ -59,7 +59,13 @@ test: ## Run `go test` with race detection in Docker
 	docker build --progress=plain --target test -f $(CURDIR)/Dockerfile -t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) . 
 
 build: ## Build Docker image, including running tests
-	docker build -f $(CURDIR)/Dockerfile -t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
+	docker build -f $(CURDIR)/Dockerfile \
+		--build-arg VERSION=$(or $(VERSION),unknown) \
+		--build-arg COMMIT=$(or $(COMMIT),unknown) \
+		--build-arg BRANCH=$(or $(BRANCH),unknown) \
+		--build-arg BUILT_AT=$(NOW) \
+		--build-arg BUILDER=$(BUILDER) \
+		-t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
 
 get-cosign-pub-key: ## Get go-listen Cosign public key from GitHub
 	test -f $(CURDIR)/go-listen.pub || curl --silent https://raw.githubusercontent.com/toozej/go-listen/main/go-listen.pub -O
@@ -78,6 +84,18 @@ up: test build ## Run Docker Compose project with build Docker image
 
 down: ## Stop running Docker Compose project
 	docker compose -f docker-compose.yml down --remove-orphans
+
+distroless-build: ## Build Docker image using distroless as final base
+	docker build -f $(CURDIR)/Dockerfile.distroless \
+		--build-arg VERSION=$(or $(VERSION),unknown) \
+		--build-arg COMMIT=$(or $(COMMIT),unknown) \
+		--build-arg BRANCH=$(or $(BRANCH),unknown) \
+		--build-arg BUILT_AT=$(NOW) \
+		--build-arg BUILDER=$(BUILDER) \
+		-t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)-distroless .
+
+distroless-run: ## Run built Docker image using distroless as final base
+	docker run --rm --name go-listen -v $(CURDIR)/config:/config $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)-distroless
 
 install: ## Install go-listen from latest GitHub release
 	if command -v go; then \
@@ -203,7 +221,7 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 	# syft
 	command -v syft || curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
 	# cosign
-	go install github.com/sigstore/cosign/cmd/cosign@latest
+	command -v cosign || brew install cosign || go install github.com/sigstore/cosign/v3/cmd/cosign@latest
 	# go-licenses
 	go install github.com/google/go-licenses@latest
 	# go vuln check

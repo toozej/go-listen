@@ -20,7 +20,7 @@
 //	import "github.com/toozej/go-listen/pkg/config"
 //
 //	func main() {
-//		conf := config.GetEnvVars(false)
+//		conf := config.GetEnvVars()
 //		fmt.Printf("Server: %s\n", conf.Server.Address())
 //	}
 package config
@@ -49,7 +49,7 @@ import (
 //
 // Example:
 //
-//	conf := config.GetEnvVars(false)
+//	conf := config.GetEnvVars()
 //	fmt.Printf("Server will run on: %s\n", conf.Server.Address())
 type Config struct {
 	Server   ServerConfig   `envPrefix:"SERVER_"`
@@ -116,8 +116,7 @@ func (s ServerConfig) Address() string {
 //  2. Constructs and validates the .env file path to prevent traversal attacks
 //  3. Loads .env file if it exists in the current directory
 //  4. Parses environment variables into the Config struct
-//  5. Validates the configuration for correctness
-//  6. Returns the populated configuration
+//  5. Returns the populated configuration
 //
 // Security measures implemented:
 //   - Path traversal detection and prevention using filepath.Rel
@@ -131,22 +130,19 @@ func (s ServerConfig) Address() string {
 //   - Path traversal attempts detected
 //   - .env file parsing errors
 //   - Environment variable parsing failures
-//   - Configuration validation failures
-//
-// Parameters:
-//   - debug: If true, prints detailed configuration information
 //
 // Returns:
-//   - Config: A populated and validated configuration struct
+//   - Config: A populated configuration struct with values from environment
+//     variables and/or .env file
 //
 // Example:
 //
-//	// Load configuration with debug output
-//	conf := config.GetEnvVars(true)
+//	// Load configuration
+//	conf := config.GetEnvVars()
 //
 //	// Use configuration
 //	server := &http.Server{Addr: conf.Server.Address()}
-func GetEnvVars(debug bool) Config {
+func GetEnvVars() Config {
 	// Get current working directory for secure file operations
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -179,8 +175,6 @@ func GetEnvVars(debug bool) Config {
 		if err := godotenv.Load(envPath); err != nil {
 			fmt.Printf("Error loading .env file: %s\n", err)
 			os.Exit(1)
-		} else if debug {
-			fmt.Println("Loaded environment variables from .env file")
 		}
 	}
 
@@ -191,87 +185,5 @@ func GetEnvVars(debug bool) Config {
 		os.Exit(1)
 	}
 
-	// Validate configuration
-	if err := validateConfig(&conf); err != nil {
-		fmt.Printf("Configuration validation error: %s\n", err)
-		fmt.Println("Please check your configuration and try again.")
-		os.Exit(1)
-	}
-
-	if debug {
-		fmt.Printf("Loaded configuration: %#v\n", conf)
-	}
-
 	return conf
-}
-
-// validateConfig validates the configuration
-func validateConfig(conf *Config) error {
-	var errors []string
-
-	// Validate server configuration
-	if conf.Server.Port < 1 || conf.Server.Port > 65535 {
-		errors = append(errors, "server port must be between 1 and 65535")
-	}
-	if conf.Server.ReadTimeout < 1 {
-		errors = append(errors, "server read timeout must be at least 1 second")
-	}
-	if conf.Server.WriteTimeout < 1 {
-		errors = append(errors, "server write timeout must be at least 1 second")
-	}
-	if conf.Server.IdleTimeout < 1 {
-		errors = append(errors, "server idle timeout must be at least 1 second")
-	}
-
-	// Validate Spotify configuration (warn but don't fail)
-	if conf.Spotify.ClientID == "" {
-		fmt.Println("Warning: SPOTIFY_CLIENT_ID is not set. The application will not be able to connect to Spotify.")
-		fmt.Println("Please set your Spotify credentials to use the application.")
-	}
-	if conf.Spotify.ClientSecret == "" {
-		fmt.Println("Warning: SPOTIFY_CLIENT_SECRET is not set. The application will not be able to connect to Spotify.")
-	}
-
-	// Validate security configuration
-	if conf.Security.RateLimit.RequestsPerSecond < 1 {
-		errors = append(errors, "rate limit requests per second must be at least 1")
-	}
-	if conf.Security.RateLimit.Burst < 1 {
-		errors = append(errors, "rate limit burst must be at least 1")
-	}
-
-	// Validate logging configuration
-	validLogLevels := map[string]bool{
-		"debug": true, "info": true, "warn": true, "error": true,
-	}
-	if !validLogLevels[conf.Logging.Level] {
-		errors = append(errors, "logging level must be one of: debug, info, warn, error")
-	}
-
-	validLogFormats := map[string]bool{
-		"json": true, "text": true,
-	}
-	if !validLogFormats[conf.Logging.Format] {
-		errors = append(errors, "logging format must be one of: json, text")
-	}
-
-	// Validate scraper configuration
-	if conf.Scraper.TimeoutSeconds < 1 {
-		errors = append(errors, "scraper timeout must be at least 1 second")
-	}
-	if conf.Scraper.MaxRetries < 0 {
-		errors = append(errors, "scraper max retries must be non-negative")
-	}
-	if conf.Scraper.RetryBackoff < 0 {
-		errors = append(errors, "scraper retry backoff must be non-negative")
-	}
-	if conf.Scraper.MaxContentSize < 1 {
-		errors = append(errors, "scraper max content size must be at least 1 byte")
-	}
-
-	if len(errors) > 0 {
-		return fmt.Errorf("configuration errors:\n- %s", errors[0])
-	}
-
-	return nil
 }

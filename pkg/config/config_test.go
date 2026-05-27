@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
@@ -170,14 +169,6 @@ func TestConfigLoading(t *testing.T) {
 				t.Fatalf("Failed to parse config: %v", err)
 			}
 
-			// Validate configuration (this will print warnings for missing Spotify credentials)
-			if err := validateConfig(&conf); err != nil {
-				if tt.expectValid {
-					t.Fatalf("Expected valid config but got error: %v", err)
-				}
-				return
-			}
-
 			if !tt.expectValid {
 				t.Fatal("Expected invalid config but validation passed")
 			}
@@ -232,7 +223,6 @@ func TestGetEnvVars(t *testing.T) {
 	tests := []struct {
 		name        string
 		mockEnv     map[string]string
-		debug       bool
 		expectValid bool
 		checkFunc   func(*testing.T, Config)
 	}{
@@ -244,7 +234,6 @@ func TestGetEnvVars(t *testing.T) {
 				"SERVER_HOST":           "0.0.0.0",
 				"SERVER_PORT":           "9000",
 			},
-			debug:       false,
 			expectValid: true,
 			checkFunc: func(t *testing.T, conf Config) {
 				if conf.Server.Host != "0.0.0.0" {
@@ -265,7 +254,6 @@ func TestGetEnvVars(t *testing.T) {
 				"SPOTIFY_CLIENT_SECRET": "debug_client_secret",
 				"LOGGING_LEVEL":         "debug",
 			},
-			debug:       true,
 			expectValid: true,
 			checkFunc: func(t *testing.T, conf Config) {
 				if conf.Spotify.ClientID != "debug_client_id" {
@@ -282,7 +270,6 @@ func TestGetEnvVars(t *testing.T) {
 				"SPOTIFY_CLIENT_ID":     "minimal_id",
 				"SPOTIFY_CLIENT_SECRET": "minimal_secret",
 			},
-			debug:       false,
 			expectValid: true,
 			checkFunc: func(t *testing.T, conf Config) {
 				// Should use defaults for unset values
@@ -326,249 +313,11 @@ func TestGetEnvVars(t *testing.T) {
 			}()
 
 			// Test GetEnvVars function
-			conf := GetEnvVars(tt.debug)
+			conf := GetEnvVars()
 
 			// Run custom checks
 			if tt.checkFunc != nil {
 				tt.checkFunc(t, conf)
-			}
-		})
-	}
-}
-
-func TestValidateConfig(t *testing.T) {
-	tests := []struct {
-		name        string
-		config      Config
-		expectError bool
-		errorMsg    string
-	}{
-		{
-			name: "Valid configuration",
-			config: Config{
-				Server: ServerConfig{
-					Host:         "localhost",
-					Port:         8080,
-					ReadTimeout:  30,
-					WriteTimeout: 60,
-					IdleTimeout:  120,
-				},
-				Spotify: SpotifyConfig{
-					ClientID:     "test_id",
-					ClientSecret: "test_secret",
-					RedirectURL:  "http://127.0.0.1:8080/callback",
-				},
-				Security: SecurityConfig{
-					RateLimit: RateLimitConfig{
-						RequestsPerSecond: 10,
-						Burst:             20,
-					},
-				},
-				Logging: LoggingConfig{
-					Level:      "info",
-					Format:     "json",
-					Output:     "stdout",
-					EnableHTTP: true,
-				},
-				Scraper: ScraperConfig{
-					TimeoutSeconds: 30,
-					MaxRetries:     3,
-					RetryBackoff:   2,
-					UserAgent:      "go-listen/1.0 (Web Scraper)",
-					MaxContentSize: 10485760,
-				},
-			},
-			expectError: false,
-		},
-		{
-			name: "Invalid server port - too low",
-			config: Config{
-				Server: ServerConfig{
-					Port:         0,
-					ReadTimeout:  30,
-					WriteTimeout: 60,
-					IdleTimeout:  120,
-				},
-				Security: SecurityConfig{
-					RateLimit: RateLimitConfig{
-						RequestsPerSecond: 10,
-						Burst:             20,
-					},
-				},
-				Logging: LoggingConfig{
-					Level:  "info",
-					Format: "json",
-				},
-				Scraper: ScraperConfig{
-					TimeoutSeconds: 30,
-					MaxRetries:     3,
-					RetryBackoff:   2,
-					MaxContentSize: 10485760,
-				},
-			},
-			expectError: true,
-			errorMsg:    "server port must be between 1 and 65535",
-		},
-		{
-			name: "Invalid server port - too high",
-			config: Config{
-				Server: ServerConfig{
-					Port:         70000,
-					ReadTimeout:  30,
-					WriteTimeout: 60,
-					IdleTimeout:  120,
-				},
-				Security: SecurityConfig{
-					RateLimit: RateLimitConfig{
-						RequestsPerSecond: 10,
-						Burst:             20,
-					},
-				},
-				Logging: LoggingConfig{
-					Level:  "info",
-					Format: "json",
-				},
-				Scraper: ScraperConfig{
-					TimeoutSeconds: 30,
-					MaxRetries:     3,
-					RetryBackoff:   2,
-					MaxContentSize: 10485760,
-				},
-			},
-			expectError: true,
-			errorMsg:    "server port must be between 1 and 65535",
-		},
-		{
-			name: "Invalid rate limit - zero requests per second",
-			config: Config{
-				Server: ServerConfig{
-					Port:         8080,
-					ReadTimeout:  30,
-					WriteTimeout: 60,
-					IdleTimeout:  120,
-				},
-				Security: SecurityConfig{
-					RateLimit: RateLimitConfig{
-						RequestsPerSecond: 0,
-						Burst:             20,
-					},
-				},
-				Logging: LoggingConfig{
-					Level:  "info",
-					Format: "json",
-				},
-				Scraper: ScraperConfig{
-					TimeoutSeconds: 30,
-					MaxRetries:     3,
-					RetryBackoff:   2,
-					MaxContentSize: 10485760,
-				},
-			},
-			expectError: true,
-			errorMsg:    "rate limit requests per second must be at least 1",
-		},
-		{
-			name: "Invalid rate limit - zero burst",
-			config: Config{
-				Server: ServerConfig{
-					Port:         8080,
-					ReadTimeout:  30,
-					WriteTimeout: 60,
-					IdleTimeout:  120,
-				},
-				Security: SecurityConfig{
-					RateLimit: RateLimitConfig{
-						RequestsPerSecond: 10,
-						Burst:             0,
-					},
-				},
-				Logging: LoggingConfig{
-					Level:  "info",
-					Format: "json",
-				},
-				Scraper: ScraperConfig{
-					TimeoutSeconds: 30,
-					MaxRetries:     3,
-					RetryBackoff:   2,
-					MaxContentSize: 10485760,
-				},
-			},
-			expectError: true,
-			errorMsg:    "rate limit burst must be at least 1",
-		},
-		{
-			name: "Invalid log level",
-			config: Config{
-				Server: ServerConfig{
-					Port:         8080,
-					ReadTimeout:  30,
-					WriteTimeout: 60,
-					IdleTimeout:  120,
-				},
-				Security: SecurityConfig{
-					RateLimit: RateLimitConfig{
-						RequestsPerSecond: 10,
-						Burst:             20,
-					},
-				},
-				Logging: LoggingConfig{
-					Level:  "invalid",
-					Format: "json",
-				},
-				Scraper: ScraperConfig{
-					TimeoutSeconds: 30,
-					MaxRetries:     3,
-					RetryBackoff:   2,
-					MaxContentSize: 10485760,
-				},
-			},
-			expectError: true,
-			errorMsg:    "logging level must be one of: debug, info, warn, error",
-		},
-		{
-			name: "Invalid log format",
-			config: Config{
-				Server: ServerConfig{
-					Port:         8080,
-					ReadTimeout:  30,
-					WriteTimeout: 60,
-					IdleTimeout:  120,
-				},
-				Security: SecurityConfig{
-					RateLimit: RateLimitConfig{
-						RequestsPerSecond: 10,
-						Burst:             20,
-					},
-				},
-				Logging: LoggingConfig{
-					Level:  "info",
-					Format: "invalid",
-				},
-				Scraper: ScraperConfig{
-					TimeoutSeconds: 30,
-					MaxRetries:     3,
-					RetryBackoff:   2,
-					MaxContentSize: 10485760,
-				},
-			},
-			expectError: true,
-			errorMsg:    "logging format must be one of: json, text",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := validateConfig(&tt.config)
-
-			if tt.expectError {
-				if err == nil {
-					t.Fatal("Expected error but got none")
-				}
-				if tt.errorMsg != "" && err.Error() != fmt.Sprintf("configuration errors:\n- %s", tt.errorMsg) {
-					t.Errorf("Expected error message %q, got %q", tt.errorMsg, err.Error())
-				}
-			} else if err != nil {
-				t.Fatalf("Expected no error but got: %v", err)
 			}
 		})
 	}

@@ -22,7 +22,6 @@ out/
 
 # Dependency directories (remove the comment below to include it)
 vendor/
-node_modules/
 
 # Generated directories
 completions/
@@ -37,4 +36,3 @@ prompt.md
 TASKS.md
 .kiro/
 .kilocode/
-

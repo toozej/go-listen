@@ -83,8 +83,8 @@ func rootCmdPreRun(cmd *cobra.Command, args []string) {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	// Load configuration with debug flag
-	conf = config.GetEnvVars(debug)
+	// Load configuration
+	conf = config.GetEnvVars()
 }
 
 // Execute starts the command-line interface execution.
@@ -118,7 +118,7 @@ func Execute() {
 // rootCmdPreRun with the debug flag value to enable debug output during loading.
 func init() {
 	// get configuration from environment variables
-	conf = config.GetEnvVars(false)
+	conf = config.GetEnvVars()
 
 	// create rootCmd-level flags
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug-level logging")

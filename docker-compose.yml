@@ -6,18 +6,16 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-    env_file:
-      - configs/production.env
+    read_only: true
     labels:
-      - "traefik.docker.network=traefik"
-      - "traefik.http.routers.go-listen.rule=Host(`go-listen.test`)"
-      - "traefik.http.routers.go-listen.middlewares=http-redirect-https@file,headers@file"
-      - "traefik.http.routers.go-listen-secure.entrypoints=https"
-      - "traefik.http.routers.go-listen-secure.rule=Host(`go-listen.test`)"
-      - "traefik.http.routers.go-listen-secure.middlewares=headers@file"
-      - "traefik.http.routers.go-listen-secure.tls=true"
-    networks:
-      - traefik
-networks:
-  traefik:
-    external: true
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.go-listen.rule=Host(`go-listen.test`)"
+      # - "traefik.http.routers.go-listen.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.go-listen-secure.entrypoints=https"
+      # - "traefik.http.routers.go-listen-secure.rule=Host(`go-listen.test`)"
+      # - "traefik.http.routers.go-listen-secure.middlewares=headers@file"
+      # - "traefik.http.routers.go-listen-secure.tls=true"
+    # networks:
+      # - traefik

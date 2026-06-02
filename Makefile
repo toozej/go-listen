@@ -83,8 +83,11 @@ release: ## Build and sign Docker image
 get-cosign-pub-key: ## Get go-listen Cosign public key from GitHub
 	test -f $(CURDIR)/go-listen.pub || curl --silent https://raw.githubusercontent.com/toozej/go-listen/main/go-listen.pub -O
 
-verify: get-cosign-pub-key ## Verify Docker image with Cosign
-	cosign verify --key $(CURDIR)/go-listen.pub $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
+verify: ## Verify Docker image with Cosign
+	cosign verify \
+		--certificate-identity-regexp '^https://github.com/toozej/go-listen/.github/workflows/release.yaml@refs/tags/.*$$' \
+		--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
+		$(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
 run: ## Run built Docker image
 	-docker kill $(IMAGE_NAME)
@@ -97,18 +100,6 @@ up: test build ## Run Docker Compose project with build Docker image
 
 down: ## Stop running Docker Compose project
 	docker compose -f docker-compose.yml down --remove-orphans
-
-distroless-build: ## Build Docker image using distroless as final base
-	docker build -f $(CURDIR)/Dockerfile.distroless \
-		--build-arg VERSION=$(or $(VERSION),unknown) \
-		--build-arg COMMIT=$(or $(COMMIT),unknown) \
-		--build-arg BRANCH=$(or $(BRANCH),unknown) \
-		--build-arg BUILT_AT=$(NOW) \
-		--build-arg BUILDER=$(BUILDER) \
-		-t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)-distroless .
-
-distroless-run: ## Run built Docker image using distroless as final base
-	docker run --rm --name go-listen -v $(CURDIR)/config:/config $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)-distroless
 
 install: ## Install go-listen from latest GitHub release
 	if command -v go; then \

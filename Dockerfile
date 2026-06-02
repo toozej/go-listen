@@ -35,10 +35,12 @@ RUN PKG=$(head -n 1 go.mod | cut -c 8-) && \
     LDFLAGS="-s -w -X ${PKG}/pkg/version.Version=${VERSION} -X ${PKG}/pkg/version.Commit=${COMMIT} -X ${PKG}/pkg/version.Branch=${BRANCH} -X ${PKG}/pkg/version.BuiltAt=${BUILT_AT} -X ${PKG}/pkg/version.Builder=${BUILDER}" && \
     CGO_ENABLED=0 go build -ldflags="${LDFLAGS}"
 
-# runtime image
-FROM scratch
+# runtime image including CA certs and tzdata
+FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our static executable.
 COPY --from=build /go/go-listen/go-listen /go/bin/go-listen
+# Expose port for publishing as web service
+EXPOSE 8080
 # Run the binary.
 USER nonroot
 ENTRYPOINT ["/go/bin/go-listen", "serve"]

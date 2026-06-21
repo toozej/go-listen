@@ -1,6 +1,4 @@
 # Cosign
-go-listen.key
-cosign.key
 *.sig
 *.bundle
 
